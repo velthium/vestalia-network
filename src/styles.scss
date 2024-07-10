@@ -1,0 +1,66 @@
+@import 'bootstrap/scss/bootstrap';
+
+$light-grey: #f1f2f2;
+$custom-orange: #dd6c00;
+
+main {
+  white-space: pre-line;
+}
+
+footer {
+  text-align: center;
+  position: fixed;
+  width: 100%;
+  bottom: 0;
+  left: 0;
+}
+
+.custom-orange {
+  color: $custom-orange;
+}
+
+.bg-light-green, .bg-light-green:hover {
+  background-color: $light-grey;
+}
+
+.custom-btn:hover, .custom-btn {
+  background-color: #f1f2f2;
+}
+
+header, footer {
+  border-bottom: solid 1px;
+  border-color: $light-grey;
+}
+
+#vestalia-logo {
+  height: 50px;
+}
+
+.align-left {
+  text-align: left;
+}
+
+a {
+  color: black;
+}
+
+.icon-search-bar {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>');
+  background-repeat: no-repeat;
+  background-position: 15px;
+  padding-left: 45px;
+}
+
+.h7 {
+  font-size: 0.9rem;
+}
+
+.h8 {
+  font-size: 0.8rem;
+}
+
+.post-buttons, .post-buttons:hover {
+  background-color: $light-grey;
+  border: solid $light-grey;
+  border-radius: 100px;
+}

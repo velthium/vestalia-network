@@ -1,95 +1,74 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import Post from "@/components/Post/Structure/Index";
+import { useQuery } from "@tanstack/react-query";
+import { request, gql } from "graphql-request";
+import Error from "@/components/Alert/Error";
+import React from "react";
+
+function HomePage() {
+  const POSTS_AND_SECTIONS_QUERY = gql`
+      query GetPostsAndSections {
+        post(where: { text: { _is_null: false } }) {
+          id
+          text
+          owner_address
+          subspace_section {
+            name
+            id
+          }
+          reactions {
+            id
+            value
+            post_row_id
+          }
+          post_urls {
+            url
+          }
+        }
+        subspace_section {
+          name
+          id
+        }
+      }
+  `;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["postHomepage"],
+    queryFn: async () => request("http://localhost:8080/v1/graphql/", POSTS_AND_SECTIONS_QUERY)
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <Error message="Error fetching posts and communites." />;
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    <div className="container p-0 p-lg-1">
+      <article className="d-flex overflow-x-scroll mb-4">
+        {data.subspace_section.map((community, index) => (
+          <div
+            key={index}
+            className="card m-2 flex-shrink-0">
+            <a
+              className="text-decoration-none"
+              href={`/community/${community.id}/${community.name.replace(/\s/g, "")}`}>
+              <div className="card-body py-1">
+                <h1 className="h7 card-title custom-orange fw-bold">{community.name}</h1>
+              </div>
+            </a>
+          </div>
+        ))}
+      </article>
+      <article>
+        {data.post.map((post, index) => (
+          <Post
+            key={post.id}
+            post={post}
+            index={index}
+            from_page="home_page" />
+        ))}
+      </article>
+    </div>
   );
 }
+
+export default HomePage;
