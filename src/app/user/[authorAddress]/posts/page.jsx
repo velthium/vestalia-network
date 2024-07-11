@@ -1,12 +1,13 @@
 "use client";
 
-import { useQuery } from '@tanstack/react-query';
 import Post from '@/components/Post/Structure/Index';
+import { useQuery } from '@tanstack/react-query';
 import { request, gql } from 'graphql-request';
+import { useParams } from 'next/navigation';
+import Loading from "@/components/Loading";
 import PageTitle from '@/components/Title';
 import Error from '@/components/Error';
 import React from 'react';
-import { useParams } from 'next/navigation';
 
 const MyPosts = () => {
   const PERSONAL_POSTS = gql`
@@ -37,7 +38,7 @@ const MyPosts = () => {
     enabled: !!authorAddress,
   });
 
-  if (isLoading) return <div><p>Loading...</p></div>;
+  if (isLoading) return <Loading />;
   if (isError) return <Error message="Error fetching personal post data." />;
   if (personalPosts?.length === 0) return <Error message="No personal posts found." />;
 

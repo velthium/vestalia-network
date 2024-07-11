@@ -4,6 +4,7 @@ import Post from "@/components/Post/Structure/Index";
 import { useQuery } from "@tanstack/react-query";
 import { request, gql } from "graphql-request";
 import Error from "@/components/Alert/Error";
+import Loading from "@/components/Loading";
 import React from "react";
 
 function HomePage() {
@@ -38,7 +39,7 @@ function HomePage() {
     queryFn: async () => request("http://localhost:8080/v1/graphql/", POSTS_AND_SECTIONS_QUERY)
   });
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <Loading />;
   if (isError) return <Error message="Error fetching posts and communites." />;
 
   return (

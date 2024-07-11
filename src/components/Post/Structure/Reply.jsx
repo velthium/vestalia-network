@@ -1,12 +1,13 @@
 import { ReplySetting } from "@desmoslabs/desmjs-types/desmos/posts/v3/models";
-import ReplyDesign from "./ReplyDesign";
-import { useRouter } from "next/navigation";
 import SuccessAlert from "@/components/Alert/Success";
-import Keplr from "@/utils/Wallet/Keplr";
 import ErrorAlert from "@/components/Alert/Error";
 import { useQuery } from "@tanstack/react-query";
 import { request, gql } from "graphql-request";
+import { useRouter } from "next/navigation";
+import Loading from "@/components/Loading";
+import Keplr from "@/utils/Wallet/Keplr";
 import React, { useState } from "react";
+import ReplyDesign from "./ReplyDesign";
 import IpfsAdd from "@/utils/Ipfs/Add";
 
 function Reply({ postId, communityId }) {
@@ -85,7 +86,7 @@ function Reply({ postId, communityId }) {
     }
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <Loading />;
   if (isError) return <p>No comments.</p>;
 
   return (

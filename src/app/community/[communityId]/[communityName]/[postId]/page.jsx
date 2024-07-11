@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { request, gql } from "graphql-request";
 import Error from "@/components/Alert/Error";
 import { useParams } from 'next/navigation';
+import Loading from "@/components/Loading";
 import React from "react";
 
 function ReadPost() {
@@ -40,7 +41,7 @@ function ReadPost() {
     enabled: !!postId,
   });
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <Loading />;
   if (isError) return <Error message="Error fetching post." />;
 
   return (

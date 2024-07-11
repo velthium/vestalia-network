@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import PostEdit from "@/components/Post/Edit";
 import { request, gql } from "graphql-request";
 import { useParams } from 'next/navigation';
+import Loading from "@/components/Loading";
 import React from "react";
 
 const CreatePostPage = () => {
@@ -38,7 +39,7 @@ const CreatePostPage = () => {
     enabled: !!postId,
   });
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <Loading />;
   if (isError) return <Error message="Error fetching posts and communites." />;
 
   return <PostEdit isEdit={true} postId={postId} specificPost={specificPost} />;
