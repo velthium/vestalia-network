@@ -44,7 +44,9 @@ const MyPosts = () => {
             post={post}
             post_page={false}
             index={index}
-            key={index} />
+            key={index} 
+            isClickable={false}
+            />
         ))}
       </ul>
     </div>

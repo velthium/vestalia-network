@@ -2,13 +2,23 @@ import React, { useContext, useEffect, useState } from "react";
 import Downvote from "./Downvote";
 import Upvote from "./Upvote";
 import Delete from "./Delete";
-import GetProfile from "@/utils/Desmos/getProfile";
+import FetchProfile from "@/utils/Desmos/fetchProfile";
 import Share from "./Share";
 import { AuthContext } from "@/contexts/Auth";
 import GetIpfs from "@/utils/Ipfs/Get";
 import PropTypes from "prop-types";
+import Dropdown from 'react-bootstrap/Dropdown';
 
-function ReplyDesign(props) {
+const CustomToggle = React.forwardRef(({ children, onClick }, ref) => (
+  <a href="" ref={ref} onClick={(e) => { e.preventDefault(); onClick(e); }}>
+    {children}
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-three-dots" viewBox="0 0 16 16">
+      <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3"/>
+    </svg>
+  </a>
+));
+
+function ReplyDesign({ index, post_page, post }) {
   const [userNickname, setUserNickname] = useState(null);
   const { authData } = useContext(AuthContext);
   const [textpost, setTextpost] = useState();
@@ -16,60 +26,56 @@ function ReplyDesign(props) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const ipfsContent = await GetIpfs(props.post.post_urls[0].url);
+        const [ipfsContent, profile] = await Promise.all([
+          GetIpfs(post.post_urls[0].url),
+          FetchProfile(post.owner_address)
+        ]);
+
         setTextpost(ipfsContent);
+        setUserNickname(profile.nickname);
       } catch (error) {
-        console.error("Erreur lors de la récupération des données depuis IPFS :", error);
+        console.error("Erreur lors de la récupération des données :", error);
       }
     };
 
     fetchData();
+  }, [post.owner_address, post.post_urls]);
 
-    const fetchProfile = async () => {
-      try {
-        const profile = await GetProfile(props.post.owner_address);
-        setUserNickname(profile.nickname);
-      } catch (error) {
-        console.error("Erreur lors de la récupération du profil :", error);
-      }
-    };
+  const postUrl = `/community/${post.subspace_section.id}/${post.subspace_section.name.replace(/\s/g, "")}/${post.id}`;
 
-    fetchProfile();
-  }, [props.post.owner_address]);
+  const renderPostContent = () => (
+    <>
+      <p className="h8 my-1"><strong>@{userNickname}</strong></p>
+      <h2 className="h6 fw-bold">{post.text}</h2>
+      {textpost}
+    </>
+  );
 
   return (
-    <div
-      key={props.index}
-      className="border p-2 m-2 bg-white text-start">
-      {props.post_page ? (
-        <React.Fragment>
-          <h2 className="h6 fw-bold">{props.post.text}</h2>
-          <p className="h8 my-1">@{userNickname}</p>
-          <p className="h8 my-1">{props.post.subspace_section.name}</p>
-          {textpost}
-        </React.Fragment>
-      ) : (
-        <a
-          className="text-decoration-none"
-          href={`/community/${props.post.subspace_section.id}/${props.post.subspace_section.name.replace(/\s/g, "")}/${props.post.id}`}>
-          <p className="h8 my-1">@{userNickname}</p>
-          <h2 className="h6 fw-bold">{props.post.text}</h2>
-          {textpost}
-        </a>
-      )}
+    <div key={index} className="border p-2 m-2 bg-white text-start">
+      <div className="d-flex justify-content-between">
+        {post_page ? renderPostContent() : (
+          <a className="text-decoration-none" href={postUrl}>
+            {renderPostContent()}
+          </a>
+        )}
+        {authData.walletSigner && (
+          <Dropdown>
+            <Dropdown.Toggle as={CustomToggle} id="dropdown-custom-components" />
+            <Dropdown.Menu>
+              <Dropdown.Item as="button">
+                <Delete postId={post.id} />
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+        )}
+      </div>
       <div className="d-flex flex-wrap">
         <div className="d-flex post-buttons my-1">
-          <Upvote
-            postId={props.post.id}
-            postReactions={props.post.reactions} />
-          <Downvote
-            postId={props.post.id}
-            postReactions={props.post.reactions} />
+          <Upvote postId={post.id} postReactions={post.reactions} />
+          <Downvote postId={post.id} postReactions={post.reactions} />
         </div>
-        <Share postId={props.post.id} />
-        {authData.walletSigner && (
-          <Delete postId={props.post.id} />
-        )}
+        <Share postId={post.id} />
       </div>
     </div>
   );
@@ -84,15 +90,19 @@ ReplyDesign.propTypes = {
     text: PropTypes.string.isRequired,
     subspace_section: PropTypes.shape({
       id: PropTypes.number.isRequired,
-      name: PropTypes.string.isRequired
+      name: PropTypes.string.isRequired,
     }).isRequired,
-    post_urls: PropTypes.shape({
-      url: PropTypes.array.isRequired
-    }).isRequired,
-    reactions: PropTypes.shape({
-      url: PropTypes.string.isRequired
-    }).isRequired
-  }).isRequired
+    post_urls: PropTypes.arrayOf(
+      PropTypes.shape({
+        url: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+    reactions: PropTypes.arrayOf(
+      PropTypes.shape({
+        url: PropTypes.string.isRequired,
+      })
+    ).isRequired,
+  }).isRequired,
 };
 
 export default ReplyDesign;

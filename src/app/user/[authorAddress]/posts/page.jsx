@@ -15,6 +15,8 @@ const MyPosts = () => {
       post(where: { author_address: { _eq: $authorAddress } }) {
         text
         id
+        owner_address
+        row_id
         subspace_section {
           name
           id
@@ -51,7 +53,9 @@ const MyPosts = () => {
             post={post}
             post_page={false}
             index={index}
-            key={index} />
+            key={index}
+            isClickable={true}
+            />
         ))}
       </ul>
     </div>

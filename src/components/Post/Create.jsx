@@ -57,7 +57,8 @@ const CreatePost = ({ isEdit, postId, communityId, communityName }) => {
               url: "https://ipfs.desmos.network/ipfs/" + uploadResponse.Name,
               display_url: "IPFS"
             }]
-          }
+          },
+          conversationId: postId
         }
       };
 

@@ -9,6 +9,9 @@ const Success = (props) => {
 
     if (typeof props.success.rawLog === "string") {
       switch (true) {
+        case props.success.rawLog.includes("deleted_post"):
+          successMessage = "Post successfully deleted.\n";
+          break;
         case props.success.rawLog.includes("created_section"):
           successMessage = "Community successfully created.\n";
           break;

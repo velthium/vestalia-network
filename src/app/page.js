@@ -14,6 +14,7 @@ function HomePage() {
           id
           text
           owner_address
+          row_id
           subspace_section {
             name
             id
@@ -65,7 +66,8 @@ function HomePage() {
             key={post.id}
             post={post}
             index={index}
-            from_page="home_page" />
+            isClickable={true}
+          />
         ))}
       </article>
     </div>

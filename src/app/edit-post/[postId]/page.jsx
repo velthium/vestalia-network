@@ -16,6 +16,7 @@ const CreatePostPage = () => {
       id
       text
       owner_address
+      row_id
       subspace_section {
         name
         id

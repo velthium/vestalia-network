@@ -16,6 +16,7 @@ const COMMUNITY_POSTS = gql`
       id
       text
       owner_address
+      row_id
       subspace_section {
         name
         id
@@ -72,7 +73,8 @@ function Community() {
               post={post}
               index={index}
               key={index}
-              from_page="community_page" />
+              isClickable={true}
+              />
           ))
         ) : (
           <Error message="No posts found on this community." />

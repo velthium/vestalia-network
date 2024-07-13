@@ -3,16 +3,26 @@
 $light-grey: #f1f2f2;
 $custom-orange: #dd6c00;
 
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
 main {
+  flex: 1;
   white-space: pre-line;
+  padding-bottom: 60px; // Ajustez la valeur en fonction de la hauteur de votre footer
 }
 
 footer {
   text-align: center;
-  position: fixed;
   width: 100%;
-  bottom: 0;
-  left: 0;
+  border-top: solid 1px $light-grey;
 }
 
 .custom-orange {
@@ -63,4 +73,13 @@ a {
   background-color: $light-grey;
   border: solid $light-grey;
   border-radius: 100px;
+}
+
+.dropdown-item:hover {
+  background-color: transparent !important; /* Ou la couleur de fond souhaitée */
+  color: inherit; /* Pour conserver la couleur de texte originale */
+}
+
+.gray-hover:hover {
+  background-color: #f0f0f0; /* gris clair */
 }

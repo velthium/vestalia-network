@@ -3,24 +3,17 @@ import Downvote from "./Downvote";
 import Comment from "./Comment";
 import Upvote from "./Upvote";
 import Delete from "./Delete";
-import Edit from "./Edit"; // Assurez-vous d'avoir un composant Edit si nécessaire
+import Edit from "./Edit";
 import Share from "./Share";
 import { AuthContext } from "@/contexts/Auth";
 import GetIpfs from "@/utils/Ipfs/Get";
 import PropTypes from "prop-types";
-import GetProfile from "@/utils/Desmos/getProfile";
-import Dropdown from 'react-bootstrap/Dropdown'; // Assurez-vous d'avoir installé react-bootstrap et bootstrap
+import FetchProfile from "@/utils/Desmos/fetchProfile";
+import Dropdown from 'react-bootstrap/Dropdown';
+import Link from 'next/link';
 
-// Custom toggle component
 const CustomToggle = React.forwardRef(({ children, onClick }, ref) => (
-  <a
-    href=""
-    ref={ref}
-    onClick={(e) => {
-      e.preventDefault();
-      onClick(e);
-    }}
-  >
+  <a href="" ref={ref} onClick={(e) => { e.preventDefault(); onClick(e); }}>
     {children}
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-three-dots" viewBox="0 0 16 16">
       <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3m5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3"/>
@@ -28,7 +21,7 @@ const CustomToggle = React.forwardRef(({ children, onClick }, ref) => (
   </a>
 ));
 
-function Post(props) {
+const Post = ({ index, post, isClickable }) => {
   const [userNickname, setUserNickname] = useState(null);
   const { authData } = useContext(AuthContext);
   const [textpost, setTextpost] = useState();
@@ -36,75 +29,63 @@ function Post(props) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const ipfsContent = await GetIpfs(props.post.post_urls[0].url);
-        setTextpost(ipfsContent);
+        setTextpost(await GetIpfs(post.post_urls[0].url));
+        const profile = await FetchProfile(post.owner_address);
+        setUserNickname(profile.nickname);
       } catch (error) {
-        console.error("Erreur lors de la récupération des données depuis IPFS :", error);
+        console.error("Erreur lors de la récupération des données :", error);
       }
     };
 
     fetchData();
+  }, [post.owner_address]);
 
-    const fetchProfile = async () => {
-      try {
-        const profile = await GetProfile(props.post.owner_address);
-        setUserNickname(profile.nickname);
-      } catch (error) {
-        console.error("Erreur lors de la récupération du profil :", error);
-      }
-    };
-
-    fetchProfile();
-  }, [props.post.owner_address]);
-
-  return (
-    <div key={props.index} className="border p-2 m-2 bg-white text-start">
-      {props.from_page === "post_page" ? (
-        <React.Fragment>
-          <div className="d-flex justify-content-between">
-            <p className="h8 my-1"><strong>@{userNickname}</strong> on s/{props.post.subspace_section.name}</p>
-            {authData.walletSigner && (
-              <Dropdown>
-                <Dropdown.Toggle as={CustomToggle} id="dropdown-custom-components" />
-                <Dropdown.Menu>
-                  <Dropdown.Item as="button">
-                    <Edit postId={props.post.id} />
-                    <Delete postId={props.post.id} />
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
-            )}
-          </div>
-          <h2 className="h5 fw-bold">{props.post.text}</h2>
-          {textpost}
-        </React.Fragment>
-      ) : (
-        <a
-          className="text-decoration-none"
-          href={`/community/${props.post.subspace_section.id}/${props.post.subspace_section.name.replace(/\s/g, "")}/${props.post.id}`}
-        >
-          {props.from_page !== "community_page" ? (
-            <p className="h8 my-1"><strong>@{userNickname}</strong> on <span className="custom-orange">s/{props.post.subspace_section.name}</span></p>
-          ) : <p className="h8 my-1">u/{userNickname}</p>}
-          <h2 className="h5 fw-bold">{props.post.text}</h2>
-          {textpost}
-        </a>
-      )}
+  const postContent = (
+    <div key={index} className="border p-2 m-2 bg-white text-start">
+      <div className="d-flex justify-content-between">
+        <p className="h8 my-1"><strong>@{userNickname}</strong> on s/{post.subspace_section.name}</p>
+        {authData.walletSigner && !isClickable && (
+          <Dropdown>
+            <Dropdown.Toggle as={CustomToggle} id="dropdown-custom-components" />
+            <Dropdown.Menu>
+              <Dropdown.Item as="div">
+                <div className="d-flex flex-column">
+                  <Edit postId={post.id} />
+                  <Delete postId={post.id} />
+                </div>
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+        )}
+      </div>
+      <h2 className="h5 fw-bold">{post.text}</h2>
+      {textpost}
       <div className="d-flex flex-wrap">
         <div className="d-flex post-buttons my-1">
-          <Upvote postId={props.post.id} postReactions={props.post.reactions} />
-          <Downvote postId={props.post.id} postReactions={props.post.reactions} />
+          <Upvote postId={post.id} postReactions={post.reactions} />
+          <Downvote postId={post.id} postReactions={post.reactions} />
         </div>
-        <Comment postId={props.post.id} />
-        <Share postId={props.post.id} />
+        <Comment postId={post.id} />
+        <Share postId={post.id} />
       </div>
     </div>
+  );
+
+  const postUrl = `/community/${post.subspace_section.id}/${post.subspace_section.name.replace(/\s/g, "")}/${post.id}`;
+
+  return isClickable ? (
+    <Link href={postUrl} legacyBehavior>
+      <a style={{ textDecoration: 'none', color: 'inherit' }}>
+        {postContent}
+      </a>
+    </Link>
+  ) : (
+    postContent
   );
 }
 
 Post.propTypes = {
   index: PropTypes.number.isRequired,
-  from_page: PropTypes.string.isRequired,
   post: PropTypes.shape({
     owner_address: PropTypes.string.isRequired,
     id: PropTypes.number.isRequired,
@@ -124,6 +105,7 @@ Post.propTypes = {
       })
     ).isRequired,
   }).isRequired,
+  isClickable: PropTypes.bool.isRequired,
 };
 
 export default Post;

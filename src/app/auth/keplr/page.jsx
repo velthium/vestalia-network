@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useContext, useEffect } from "react";
-import GetProfile from "@/utils/Desmos/getProfile";
+import FetchProfile from "@/utils/Desmos/fetchProfile";
 import Keplr from "@/utils/Wallet/Keplr";
 import ErrorAlert from "@/components/Alert/Error";
 import PageTitle from "@/components/Title";
@@ -43,7 +43,7 @@ function KeplrPage() {
       const keplrData = await Keplr();
 
       try {
-        const desmosProfile = await GetProfile(keplrData.signer.accountData.address);
+        const desmosProfile = await FetchProfile(keplrData.signer.accountData.address);
 
         // Utilisation de la fonction cleanKeplrData pour préparer l'objet
         const cleanedKeplrData = cleanKeplrData(keplrData);
@@ -59,7 +59,6 @@ function KeplrPage() {
 
         router.push("/");
       } catch (error) {
-        console.error("Error in GetProfile: ", error);
         router.push("/profile");
       }
     } catch (error) {

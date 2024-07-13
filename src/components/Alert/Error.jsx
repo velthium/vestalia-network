@@ -8,6 +8,9 @@ const Error = (props) => {
     console.log(props);
     if (typeof props.error.message === "string") {
       switch (true) {
+        case props.error.message.includes("post does not exist"):
+          errorMessage = "Post does not exist.";
+          break;
         case props.error.message.includes("has already been created"):
           errorMessage = "Account with this DTag already exists.";
           break;
