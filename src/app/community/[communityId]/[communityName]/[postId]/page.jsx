@@ -40,7 +40,6 @@ function ReadPost() {
     queryFn: async () => {
       try {
         const response = await request("http://localhost:8080/v1/graphql/", CONTENT_POST, { id: postId });
-        console.log("GraphQL response:", response); // Debug output
         return response.post.length > 0 ? response.post[0] : null; // Handle empty array case
       } catch (error) {
         console.error("Error fetching post:", error); // Log the error

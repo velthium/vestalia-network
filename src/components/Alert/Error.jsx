@@ -5,9 +5,14 @@ import React from "react";
 const Error = (props) => {
   const displayError = () => {
     let errorMessage = "An unexpected error occurred";
-    console.log(props);
     if (typeof props.error.message === "string") {
       switch (true) {
+        case props.error.message.includes("you are not the owner of this post"):
+          errorMessage = "You don't have the access to edit this post.";
+          break;
+        case props.error.message.includes("you cannot edit content"):
+          errorMessage = "You don't have the access to remove this post.";
+          break;
         case props.error.message.includes("post does not exist"):
           errorMessage = "Post does not exist.";
           break;

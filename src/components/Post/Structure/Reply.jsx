@@ -47,8 +47,6 @@ function Reply({ postId, communityId, postRowId }) {
 
   const router = useRouter();
 
-  console.log("postRowId:", postRowId);
-
   // Create a new post on the blockchain
   const handleCreateReply = async (e) => {
     try {

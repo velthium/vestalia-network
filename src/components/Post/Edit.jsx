@@ -12,10 +12,6 @@ import IpfsAdd from "@/utils/Ipfs/Add";
 import PropTypes from 'prop-types';
 
 const EditPost = ({ postId, communityId, communityName, specificPost }) => {
-
-  
-
-  console.log(specificPost);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
   const [post, setPost] = useState({ title: '', content: '' });
@@ -76,7 +72,7 @@ const EditPost = ({ postId, communityId, communityName, specificPost }) => {
 
   return (
     <div className="container p-0 p-lg-1">
-      <PageTitle title={`Edit Post in ${communityName}`} />
+      <PageTitle title={`Edit Post in ${specificPost.subspace_section.name}`} />
       <div className="bg-white">
         <form className="align-left" onSubmit={handleSubmit}>
           <div className="mb-3">
