@@ -3,7 +3,7 @@
 export default function Home() {
   return (
     <div>
-      <h1>Vestalia Network</h1>
+      <h1 className="text-center">Vestalia Network</h1>
     </div>
   );
 }
