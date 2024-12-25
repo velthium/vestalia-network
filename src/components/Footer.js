@@ -4,7 +4,9 @@ function Footer() {
             <ul className="nav justify-content-center p-3">
                 <li className="nav-item">
                     <a
-                    className="nav-link px-2 text-body-secondary">FAQ
+                    className="nav-link px-2 text-body-secondary"
+                    href="/faq"
+                    >FAQ
                     </a>
                 </li>
                 <li className="nav-item">
