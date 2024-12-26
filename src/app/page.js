@@ -1,6 +1,7 @@
 'use client';
 
 import { initializeJackal } from '@/lib/jackalClient';
+import PageTitle from '@/components/PageTitle';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
@@ -44,8 +45,8 @@ export default function Home() {
   }
 
   return (
-    <div className="container mt-4">
-      <h1 className="text-center h3">Decentralized Storage</h1>
+    <div className="container">
+      <PageTitle title="Decentralized Storage" />
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
@@ -72,7 +73,7 @@ export default function Home() {
         <input
           type="range"
           id="days-slider"
-          className="form-range"
+          className="form-range orange-range-color"
           min="1"
           max="365"
           step="30"
@@ -82,7 +83,7 @@ export default function Home() {
       </div>
 
       <button
-        className="btn btn-primary mt-4"
+        className="btn mt-4 bg-warning"
         onClick={handlePurchase}
       >
         Purchase Storage Plan

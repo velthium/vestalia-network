@@ -1,7 +1,9 @@
 "use client";
 
+import { initializeJackal } from '@/lib/jackalClient';
+import PageTitle from '@/components/PageTitle';
 import React, { useState } from 'react';
-import { initializeJackal } from '@/lib/jackalClient'; // Adaptez le chemin à votre projet
+import Image from 'next/image';
 
 const Login = () => {
   const [status, setStatus] = useState('');
@@ -20,9 +22,17 @@ const Login = () => {
   };
 
   return (
-    <div>
-      <h1>Login</h1>
-      <button onClick={handleLoginClick}>Connect to Jackal</button>
+    <div className="container">
+      <PageTitle title="Connect your Wallet" />
+      <button className="btn mt-4 bg-warning d-flex align-items-center mx-auto" onClick={handleLoginClick}>
+        <Image
+        src="/images/Keplr.svg"
+        alt="Logo Vestalia Network"
+        width={50}
+        height={50}
+        className="rounded"
+        loading="eager"/>
+        <p className="fw-semibold fs-4 my-auto ms-3">Keplr Wallet</p></button>
       {status && <p>{status}</p>}
     </div>
   );

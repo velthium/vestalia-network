@@ -1,8 +1,18 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
+@font-face {
+  font-family: 'DogicaPixel';
+  src: url('/fonts/dogicapixel.ttf');
+}
+
 * {
+  font-family: 'DogicaPixel', sans-serif;
   padding: 0;
   margin: 0;
+}
+
+body {
+  background-color: #fff8dc;
 }
 
 header {
@@ -11,4 +21,46 @@ header {
 
 footer {
   box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+}
+
+.nav-link:focus, .text-cornsilk, a.nav-link, button.nav-link {
+  color: #fff8dc;
+}
+
+.nav-link:hover, .text-cornsilk, a.nav-link:hover, button.nav-link:hover {
+  color: #ffc107;
+}
+
+.text-cornsilk {
+  color: cornsilk;
+}
+
+.text-cornsilk a {
+  color: inherit;
+}
+
+input[type="range"] {
+  -webkit-appearance: none; /* Supprime le style par défaut */
+  width: 100%; /* Largeur à 100% */
+  height: 8px; /* Hauteur du rail */
+  background: #ffc107; /* Couleur du rail */
+  border-radius: 5px; /* Rail légèrement arrondi */
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #ffc107; /* Bouton noir */
+  border-radius: 50%; /* Rond */
+  cursor: pointer; /* Pointeur lors du survol */
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #ffc107; /* Bouton noir */
+  border-radius: 50%; /* Rond */
+  cursor: pointer;
 }

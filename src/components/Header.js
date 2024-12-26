@@ -2,12 +2,12 @@ import Image from 'next/image';
 
 function Header() {
     return (
-        <header className="mb-3">
-            <nav className="navbar navbar-expand-lg bg-body-tertiary p-0">
+        <header>
+            <nav className="navbar navbar-expand-lg navbar-dark bg-dark p-0">
                 <div className="container-fluid">
                 <a className="navbar-brand" href="/">
                     <Image
-                        src="/images/Logo.jpg"
+                        src="/images/Logo.webp"
                         alt="Logo Vestalia Network"
                         width={50}
                         height={50}

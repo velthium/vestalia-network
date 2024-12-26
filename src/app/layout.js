@@ -1,7 +1,8 @@
+import BootstrapClient from '@/components/BootstrapClient';
 import { Geist, Geist_Mono } from "next/font/google";
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import BootstrapClient from '@/components/BootstrapClient';
+
 
 import "./globals.scss";
 
@@ -25,7 +26,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Header />
-        <main className="container">
+        <main className="h-100 text-center py-3">
           {children}
           <BootstrapClient />
         </main>
