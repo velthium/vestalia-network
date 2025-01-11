@@ -50,6 +50,8 @@ export async function initializeJackal() {
     // Chargez le pool de fournisseurs disponibles
     await storage.loadProviderPool();
 
+    localStorage.setItem('jackalConnected', 'true');
+
     return { client, storage };
   } catch (error) {
     console.error('Error initializing Jackal client:', error);

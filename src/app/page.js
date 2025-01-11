@@ -1,93 +1,59 @@
 'use client';
 
-import { initializeJackal } from '@/lib/jackalClient';
 import PageTitle from '@/components/PageTitle';
-import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 export default function Home() {
-  const [providerPool, setProviderPool] = useState([]);
-  const [error, setError] = useState(null);
-  const [gb, setGb] = useState(1000); // Par défaut 1000 GB
-  const [days, setDays] = useState(365); // Par défaut 365 jours
-
-  useEffect(() => {
-    async function fetchProviderPool() {
-      try {
-        const { storage } = await initializeJackal();
-
-        // Récupérez le pool de fournisseurs
-        const pool = storage.providerPool;
-        setProviderPool(pool);
-      } catch (err) {
-        console.error('Error loading provider pool:', err);
-        setError('Failed to load provider pool.');
-      }
-    }
-
-    fetchProviderPool();
-  }, []);
-
-  async function handlePurchase() {
-    try {
-      const { storage } = await initializeJackal();
-
-      const options = {
-        gb,
-        days,
-      };
-
-      await storage.purchaseStoragePlan(options);
-      alert(`Storage plan purchased: ${gb} GB for ${days} days.`);
-    } catch (err) {
-      console.error('Error purchasing storage plan:', err);
-      alert('Failed to purchase storage plan.');
-    }
-  }
-
   return (
-    <div className="container">
+    <div className="container text-center py-5">
       <PageTitle title="Decentralized Storage" />
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <div className="form-group mt-4">
-        <label htmlFor="gb-slider" className="form-label">
-          Select Storage Size: {gb} GB
-        </label>
-        <input
-          type="range"
-          id="gb-slider"
-          className="form-range"
-          min="1"
-          max="2000"
-          step="1"
-          value={gb}
-          onChange={(e) => setGb(Number(e.target.value))}
-        />
+      <h2 className='h5 my-3'>Unlock the power of decentralized storage with unparalleled flexibility. Choose exactly how much space you need for the duration you want, without unnecessary complexity.</h2>
+      <div className='d-flex flex-column flex-md-row justify-content-around border p-md-2 bg-warning align-items-center rounded w-75 m-auto'>
+          <div className='m-2'>
+            <p>Total Users</p>
+            <p></p>
+          </div>
+          <div className='m-2'>
+            <p>Active Providers</p>
+            <p></p>
+          </div>
+          <div className='m-2'>
+            <p>Storage Purchased</p>
+            <p></p>
+          </div>
       </div>
-
-      <div className="form-group mt-4">
-        <label htmlFor="days-slider" className="form-label">
-          Select Duration: {days} Days
-        </label>
-        <input
-          type="range"
-          id="days-slider"
-          className="form-range orange-range-color"
-          min="1"
-          max="365"
-          step="30"
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-        />
+      <p className="my-5">This website serves as a complement to Jackal Vault, offering users the opportunity to purchase additional storage space. It is designed specifically for those who need extra room to securely store their data, enhancing the Jackal Vault experience.</p>
+      <div className='d-flex flex-column flex-sm-row justify-content-around bg-sunshine rounded'>
+      <figure className='figure'>
+        <a className='text-decoration-none' href='https://vault.jackalprotocol.com/'>
+          <figcaption className='figure-caption p-2'>Jackal website</figcaption>
+                              <Image
+                                  src="/images/JackalLogo.webp"
+                                  alt="Logo Vestalia Network"
+                                  width={300}
+                                  height={300}
+                                  className="img-fluid border rounded shadow homepage-pictures"
+                                  loading="eager"
+                              />
+        </a>
+      </figure>
+      <figure className='figure'>
+      <a className='text-decoration-none' href='https://vault.jackalprotocol.com/'>
+        <figcaption className='figure-caption p-2'>Jackal Application</figcaption>
+                            <Image
+                                src="/images/Cloud.webp"
+                                alt="Logo Vestalia Network"
+                                width={300}
+                                height={300}
+                                className="img-fluid border rounded shadow homepage-pictures"
+                                loading="eager"
+                            />
+      </a>
+      </figure>
       </div>
+      <div className="main-timeline">
 
-      <button
-        className="btn mt-4 bg-warning"
-        onClick={handlePurchase}
-      >
-        Purchase Storage Plan
-      </button>
+      </div>
     </div>
   );
 }
