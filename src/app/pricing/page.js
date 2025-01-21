@@ -3,6 +3,8 @@
 import { initializeJackal } from '@/lib/jackalClient';
 import PageTitle from '@/components/PageTitle';
 import { useEffect, useState } from 'react';
+import { showSuccessAlert } from '@/utils/alerts/success';
+import { showErrorAlert } from '@/utils/alerts/error';
 
 export default function Home() {
   const [providerPool, setProviderPool] = useState([]);
@@ -50,6 +52,7 @@ export default function Home() {
       await storage.purchaseStoragePlan(options);
       alert(`Storage plan purchased: ${size} ${unit} (${storageSize} bytes) for ${years} years (${days} days).`);
     } catch (err) {
+      showErrorAlert('Oops!', 'An error occurred while processing your request.');
       console.error('Error purchasing storage plan:', err);
       alert('Failed to purchase storage plan.');
     }
