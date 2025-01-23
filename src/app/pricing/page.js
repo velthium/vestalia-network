@@ -2,31 +2,14 @@
 
 import { initializeJackal } from '@/lib/jackalClient';
 import PageTitle from '@/components/PageTitle';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { showSuccessAlert } from '@/utils/alerts/success';
 import { showErrorAlert } from '@/utils/alerts/error';
 
 export default function Home() {
-  const [providerPool, setProviderPool] = useState([]);
-  const [error, setError] = useState(null);
   const [size, setSize] = useState(1); // Default: 1 GB or TB depending on unit
   const [years, setYears] = useState(1); // Default: 1 year
   const [unit, setUnit] = useState('GB'); // Default: GB
-
-  useEffect(() => {
-    async function fetchProviderPool() {
-      try {
-        const { storage } = await initializeJackal();
-        const pool = storage.providerPool; // Fetch provider pool
-        setProviderPool(pool);
-      } catch (err) {
-        console.error('Error loading provider pool:', err);
-        setError('Failed to load provider pool.');
-      }
-    }
-
-    fetchProviderPool();
-  }, []);
 
   async function handlePurchase() {
     try {
@@ -42,19 +25,16 @@ export default function Home() {
 
       const days = years * 365; // Convert years to days
 
-      console.log(`Storage Size: ${storageSize}, Unit: ${unit}, Size: ${size}, Days: ${days}`);
-
       const options = {
         gb: storageSize,
         days,
       };
 
       await storage.purchaseStoragePlan(options);
-      alert(`Storage plan purchased: ${size} ${unit} (${storageSize} bytes) for ${years} years (${days} days).`);
+      showErrorAlert('Storage plan purchased', `${size} ${unit} (${storageSize} bytes) for ${years} years.`);
     } catch (err) {
-      showErrorAlert('Oops!', 'An error occurred while processing your request.');
-      console.error('Error purchasing storage plan:', err);
-      alert('Failed to purchase storage plan.');
+      console.log(err)
+      showErrorAlert('Oops!', err.txResponse.rawLog);
     }
   }
 
@@ -111,7 +91,6 @@ export default function Home() {
         </div>
       </div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <hr className="m-5" />
       <div className="d-flex justify-content-evenly">

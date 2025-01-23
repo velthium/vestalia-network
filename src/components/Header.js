@@ -6,7 +6,7 @@ function Header() {
         <header>
             <nav className="navbar navbar-expand-lg navbar-dark bg-dark p-0">
                 <div className="container-fluid">
-                <Link className="navbar-brand" href="/" as={'image'}>
+                <Link className="navbar-brand" href="/">
                     <Image
                         src="/images/Logo.webp"
                         alt="Logo Vestalia Network"

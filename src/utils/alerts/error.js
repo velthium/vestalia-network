@@ -6,6 +6,10 @@ export const showErrorAlert = (title, text) => {
     title: title || 'Error!',
     text: text || 'Something went wrong.',
     icon: 'error',
+    width: '50%',
     confirmButtonText: 'Try Again',
+    customClass: {
+      htmlContainer: 'lh-base'
+    },
   });
 };
