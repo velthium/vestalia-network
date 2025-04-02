@@ -1,8 +1,9 @@
-@use 'bootstrap/dist/css/bootstrap.min.css';
+@use 'bootstrap/scss/bootstrap';
 
 $color-cornsilk: #fff8dc;
 $color-highlight: #ffc107;
 $color-sunshine: #ffdb6d;
+$soft-ivory: #FFFDF4;
 
 @font-face {
   font-family: 'DogicaPixel';
@@ -27,12 +28,23 @@ footer {
   box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
 }
 
+.accordion-button:focus,
+.accordion-button:not(.collapsed) {
+  background-color: #ffc107 !important; // Bootstrap warning
+  box-shadow: none;
+}
+
 .nav-link:focus, .text-cornsilk, a.nav-link, button.nav-link {
   color: $color-cornsilk;
 }
 
 .nav-link:hover, a.nav-link:hover, button.nav-link:hover {
   color: $color-highlight;
+}
+
+.form-check-input:checked {
+  background-color: #f59f00;
+  border-color: #f59f00;
 }
 
 .text-cornsilk {
@@ -45,6 +57,10 @@ footer {
 
 .bg-sunshine {
   background-color: $color-sunshine;
+}
+
+.bg-ivory {
+  background-color: $soft-ivory;
 }
 
 input[type="range"] {

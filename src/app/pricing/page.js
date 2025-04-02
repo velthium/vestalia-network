@@ -31,10 +31,10 @@ export default function Home() {
       };
 
       await storage.purchaseStoragePlan(options);
-      showErrorAlert('Storage plan purchased', `${size} ${unit} (${storageSize} bytes) for ${years} years.`);
+      showSuccessAlert('Storage plan purchased', `${size} ${unit} (${storageSize} bytes) for ${years} years.`);
     } catch (err) {
       console.log(err)
-      showErrorAlert('Oops!', err.txResponse.rawLog);
+      showErrorAlert('Oops!', err?.txResponse?.rawLog || err.message || 'Something went wrong');
     }
   }
 
@@ -59,75 +59,80 @@ export default function Home() {
   return (
     <div className="container">
       <PageTitle title="Pricing" />
+      <p>Select the storage size and the duration of your plan</p>
+      <div className="p-5 bg-ivory rounded shadow-sm">
+        <div className="d-flex justify-content-evenly flex-wrap">
+          <div className="form-group">
+            <label htmlFor="size-input" className="form-label">
+              Enter Storage Size:
+            </label>
+            <div className="input-group w-100 m-auto">
+              <input
+                type="number"
+                id="size-input"
+                className="form-control bg-sunshine w-75 m-auto"
+                min={1}
+                max={unit === 'GB' ? 999 : 999} // Max size for GB or TB
+                value={size}
+                onChange={(e) => setSize(Number(e.target.value))}
+              />
+              <span className="input-group-text">{unit}</span>
+            </div>
+            <div className="d-flex justify-content-center pt-3">
+              <div className="form-check text-start">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="storageUnit"
+                  id="unit-gb"
+                  value="GB"
+                  checked={unit === 'GB'}
+                  onChange={handleUnitChange}
+                />
+                <label className="form-check-label" htmlFor="unit-gb">
+                  GB
+                </label>
+              </div>
+              <div className="form-check text-start ms-3">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="storageUnit"
+                  id="unit-tb"
+                  value="TB"
+                  checked={unit === 'TB'}
+                  onChange={handleUnitChange}
+                />
+                <label className="form-check-label" htmlFor="unit-tb">
+                  TB
+                </label>
+              </div>
+            </div>
+          </div>
 
-      <div className="d-flex justify-content-center">
-        <div className="form-check text-start">
-          <input
-            className="form-check-input"
-            type="radio"
-            name="storageUnit"
-            id="unit-gb"
-            value="GB"
-            checked={unit === 'GB'}
-            onChange={handleUnitChange}
-          />
-          <label className="form-check-label" htmlFor="unit-gb">
-            GB
-          </label>
+          <div className="form-group">
+            <label htmlFor="years-input" className="form-label">
+              Enter Duration:
+            </label>
+            <div className="input-group w-100 m-auto">
+            <input
+              type="number"
+              id="years-input"
+              className="form-control bg-sunshine w-50 m-auto"
+              min="1"
+              max="90"
+              value={years}
+              onChange={(e) => setYears(Number(e.target.value))}
+            />
+          <span className="input-group-text">Years</span>
+          </div>
+          </div>
         </div>
-        <div className="form-check text-start ms-3">
-          <input
-            className="form-check-input"
-            type="radio"
-            name="storageUnit"
-            id="unit-tb"
-            value="TB"
-            checked={unit === 'TB'}
-            onChange={handleUnitChange}
-          />
-          <label className="form-check-label" htmlFor="unit-tb">
-            TB
-          </label>
-        </div>
+        <hr className='my-5 w-75 m-auto' />
+        <button className="btn bg-warning px-4 py-2 shadow-sm mx-auto" onClick={handlePurchase}>
+          Purchase Storage Plan
+        </button>
       </div>
-
-
-      <hr className="m-5" />
-      <div className="d-flex justify-content-evenly">
-        <div className="form-group">
-          <label htmlFor="size-input" className="form-label">
-            Enter Storage Size ({unit}):
-          </label>
-          <input
-            type="number"
-            id="size-input"
-            className="form-control bg-sunshine w-75 m-auto"
-            min={1}
-            max={unit === 'GB' ? 999 : 999} // Max size for GB or TB
-            value={size}
-            onChange={(e) => setSize(Number(e.target.value))}
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="years-input" className="form-label">
-            Enter Duration (Years):
-          </label>
-          <input
-            type="number"
-            id="years-input"
-            className="form-control bg-sunshine w-75 m-auto"
-            min="1"
-            max="90"
-            value={years}
-            onChange={(e) => setYears(Number(e.target.value))}
-          />
-        </div>
-      </div>
-      <hr className='m-5' />
-      <button className="btn bg-warning" onClick={handlePurchase}>
-        Purchase Storage Plan
-      </button>
-    </div>
+    </div> 
   );
 }
