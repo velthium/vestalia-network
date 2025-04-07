@@ -6,6 +6,9 @@ import { useState } from 'react';
 import { showSuccessAlert } from '@/utils/alerts/success';
 import { showErrorAlert } from '@/utils/alerts/error';
 
+const MAX_SIZE = 999;
+const MAX_YEARS = 90;
+
 export default function Home() {
   const [size, setSize] = useState(1); // Default: 1 GB or TB depending on unit
   const [years, setYears] = useState(1); // Default: 1 year
@@ -15,13 +18,7 @@ export default function Home() {
     try {
       const { storage } = await initializeJackal();
 
-      // Convert storage size based on the selected unit
-      let storageSize;
-      if (unit === 'GB') {
-        storageSize = size;
-      } else if (unit === 'TB') {
-        storageSize = size * 1000
-      }
+      const storageSize = unit === 'GB' ? size : size * 1000;
 
       const days = years * 365; // Convert years to days
 
@@ -43,17 +40,8 @@ export default function Home() {
     setUnit(selectedUnit);
 
     // Ensure size is within valid range for the selected unit
-    setSize((prevSize) => {
-      let newSize = prevSize;
+    setSize(prevSize => Math.min(Math.max(1, prevSize), MAX_SIZE));
 
-      if (selectedUnit === 'GB') {
-        if (prevSize > 999) newSize = 999; // Max 999 GB
-      } else if (selectedUnit === 'TB') {
-        if (prevSize > 999) newSize = 999; // Max 999 TB
-      }
-
-      return Math.max(1, newSize); // Enforce minimum size of 1
-    });
   }
 
   return (
@@ -72,41 +60,37 @@ export default function Home() {
                 id="size-input"
                 className="form-control bg-sunshine w-75 m-auto"
                 min={1}
-                max={unit === 'GB' ? 999 : 999} // Max size for GB or TB
+                max={MAX_SIZE} // Max size for GB or TB
                 value={size}
-                onChange={(e) => setSize(Number(e.target.value))}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (!isNaN(value)) {
+                    setSize(Math.min(Math.max(1, value), MAX_SIZE));
+                  }
+                }}
               />
               <span className="input-group-text">{unit}</span>
             </div>
             <div className="d-flex justify-content-center pt-3">
-              <div className="form-check text-start">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="storageUnit"
-                  id="unit-gb"
-                  value="GB"
-                  checked={unit === 'GB'}
-                  onChange={handleUnitChange}
-                />
-                <label className="form-check-label" htmlFor="unit-gb">
-                  GB
-                </label>
-              </div>
-              <div className="form-check text-start ms-3">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="storageUnit"
-                  id="unit-tb"
-                  value="TB"
-                  checked={unit === 'TB'}
-                  onChange={handleUnitChange}
-                />
-                <label className="form-check-label" htmlFor="unit-tb">
-                  TB
-                </label>
-              </div>
+              {['GB', 'TB'].map((value, index) => (
+                <div
+                  className={`form-check text-start ${index > 0 ? 'ms-3' : ''}`}
+                  key={value}
+                >
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="storageUnit"
+                    id={`unit-${value.toLowerCase()}`}
+                    value={value}
+                    checked={unit === value}
+                    onChange={handleUnitChange}
+                  />
+                  <label className="form-check-label" htmlFor={`unit-${value.toLowerCase()}`}>
+                    {value}
+                  </label>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -120,9 +104,14 @@ export default function Home() {
               id="years-input"
               className="form-control bg-sunshine w-50 m-auto"
               min="1"
-              max="90"
+              max={MAX_YEARS}
               value={years}
-              onChange={(e) => setYears(Number(e.target.value))}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (!isNaN(value)) {
+                  setYears(Math.min(Math.max(1, value), MAX_YEARS));
+                }
+              }}
             />
           <span className="input-group-text">Years</span>
           </div>
