@@ -7,17 +7,20 @@ import Image from 'next/image';
 
 const Login = () => {
   const [status, setStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   const handleLoginClick = async () => {
     try {
       setStatus('Connecting...');
       const { client, storage } = await initializeJackal();
       setStatus('Connected successfully!');
-      console.log('Client:', client);
+      console.debug('Jackal client:', client);
       console.log('Storage:', storage);
     } catch (error) {
       setStatus('Connection failed!');
       console.error('Error during connection:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -32,8 +35,12 @@ const Login = () => {
         height={50}
         className="rounded"
         loading="eager"/>
-        <p className="fw-semibold fs-4 my-auto ms-3">Keplr Wallet</p></button>
-      {status && <p>{status}</p>}
+        <p className="fw-semibold fs-4 my-auto ms-3"><span>{isLoading ? 'Connecting...' : 'Keplr Wallet'}</span></p></button>
+        {status && (
+          <p className={`mt-3 ${status.includes('success') ? 'text-success' : 'text-danger'}`}>
+            {status}
+          </p>
+        )}
     </div>
   );
 };
