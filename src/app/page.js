@@ -1,15 +1,56 @@
 'use client';
 
 import PageTitle from '@/components/PageTitle';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
-const stats = [
-  { label: 'Total Users', value: 0 },
-  { label: 'Active Providers', value: 0 },
-  { label: 'Storage Purchased', value: 0 },
-];
-
 export default function Home() {
+  const [stats, setStats] = useState([
+    { label: 'Total Users', value: 0 },
+    { label: 'Total Files', value: 0 },
+    { label: 'Available space', value: 0 },
+  ]);
+
+useEffect(() => {
+  const fetchStats = async () => {
+    try {
+      const [usersRes, filesRes, spaceRes] = await Promise.all([
+        fetch('https://stats-api.jackallabs.io/total_users'),
+        fetch('https://stats-api.jackallabs.io/total_files'),
+        fetch('https://stats-api.jackallabs.io/available_space'),
+      ]);
+
+      const usersData = await usersRes.json();
+      const filesData = await filesRes.json();
+      const spaceData = await spaceRes.json();
+
+      const total_users = usersData?.data?.[usersData.data.length - 1]?.value;
+      const total_files = filesData?.data?.[filesData.data.length - 1]?.value;
+      const available_space = spaceData?.data?.[spaceData.data.length - 1]?.value;
+
+      setStats(prevStats =>
+        prevStats.map(stat => {
+          switch (stat.label) {
+            case 'Total Users':
+              return { ...stat, value: total_users || 0 };
+            case 'Total Files':
+              return { ...stat, value: total_files || 0 };
+            case 'Available space':
+              return { ...stat, value: available_space || 0 };
+            default:
+              return stat;
+          }
+        })
+      );
+    } catch (error) {
+      console.error('Erreur lors du fetch :', error);
+    }
+  };
+
+  fetchStats();
+}, []);
+
+
   return (
     <div className="container text-center py-5">
       <PageTitle title="Decentralized Storage" />
