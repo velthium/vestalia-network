@@ -11,6 +11,8 @@ export default function Home() {
     { label: 'Available space', value: 0 },
   ]);
 
+const [loading, setLoading] = useState(true);
+
 useEffect(() => {
   const fetchStats = async () => {
     try {
@@ -24,19 +26,19 @@ useEffect(() => {
       const filesData = await filesRes.json();
       const spaceData = await spaceRes.json();
 
-      const total_users = usersData?.data?.[usersData.data.length - 1]?.value;
-      const total_files = filesData?.data?.[filesData.data.length - 1]?.value;
-      const available_space = spaceData?.data?.[spaceData.data.length - 1]?.value;
+      const totalUsers = usersData?.data?.[usersData.data.length - 1]?.value;
+      const totalFiles = filesData?.data?.[filesData.data.length - 1]?.value;
+      const availableSpace = spaceData?.data?.[spaceData.data.length - 1]?.value;
 
       setStats(prevStats =>
         prevStats.map(stat => {
           switch (stat.label) {
             case 'Total Users':
-              return { ...stat, value: total_users || 0 };
+              return { ...stat, value: totalUsers || 0 };
             case 'Total Files':
-              return { ...stat, value: total_files || 0 };
+              return { ...stat, value: totalFiles || 0 };
             case 'Available space':
-              return { ...stat, value: available_space || 0 };
+              return { ...stat, value: availableSpace || 0 };
             default:
               return stat;
           }
@@ -44,6 +46,8 @@ useEffect(() => {
       );
     } catch (error) {
       console.error('Erreur lors du fetch :', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,12 +60,16 @@ useEffect(() => {
       <PageTitle title="Decentralized Storage" />
       <h2 className='h5 my-3'>Unlock the power of decentralized storage with unparalleled flexibility. Choose exactly how much space you need for the duration you want, without unnecessary complexity.</h2>
       <div className='d-flex flex-column flex-md-row justify-content-around border p-md-2 bg-warning align-items-center rounded w-75 m-auto'>
-      {stats.map((stat, i) => (
-        <div key={i} className="m-2">
-          <p>{stat.label}</p>
-          <p>{stat.value}</p>
-        </div>
-      ))}
+      {loading ? (
+        <p>Loading statistics...</p>
+      ) : (
+        stats.map((stat, i) => (
+          <div key={i} className="m-2">
+            <p>{stat.label}</p>
+            <p>{stat.value}</p>
+          </div>
+        ))
+      )}
       </div>
       <p className="my-5">This website serves as a complement to Jackal Vault, offering users the opportunity to purchase additional storage space. It is designed specifically for those who need extra room to securely store their data, enhancing the Jackal Vault experience.</p>
       <div className='d-flex flex-column flex-sm-row justify-content-around bg-sunshine rounded'>
@@ -70,7 +78,7 @@ useEffect(() => {
           <figcaption className='figure-caption p-2'>Jackal website</figcaption>
           <Image
               src="/images/JackalLogo.webp"
-              alt="Logo Jackal Network"
+              alt="Jackal Network logo"
               width={300}
               height={300}
               className="img-fluid border rounded shadow homepage-pictures"
@@ -83,7 +91,7 @@ useEffect(() => {
         <figcaption className='figure-caption p-2'>Jackal Application</figcaption>
         <Image
             src="/images/Cloud.webp"
-            alt="Logo Cloud"
+            alt="Cloud storage icon"
             width={300}
             height={300}
             className="img-fluid border rounded shadow homepage-pictures"
@@ -98,7 +106,7 @@ useEffect(() => {
         <a href='https://gitopia.com/dark-velthium' target='_blank'>
           <Image
               src="/images/ReFiPunks558.webp"
-              alt="Nft Velthium"
+              alt="NFT profile image of Velthium"
               width={300}
               height={300}
               className="img-fluid mx-auto border rounded shadow homepage-pictures"
