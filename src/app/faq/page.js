@@ -6,7 +6,7 @@ const faqItems = [
   {
     id: 'collapseOne',
     question: 'How do I upload files to your site?',
-    answer: 'To upload files, simply click on the "Upload" button and select the files you wish to upload. Our site will then use Jackal Network\'s API to store your files in a decentralized manner.',
+    answer: 'Click the "Upload" button and select the files you want to upload. Our site will then use Jackal Network\'s API to store your files in a decentralized manner.',
   },
   {
     id: 'collapseTwo',
@@ -16,7 +16,7 @@ const faqItems = [
   {
     id: 'collapseThree',
     question: 'How secure is my data?',
-    answer: 'Your data is stored in a decentralized manner using Jackal Network\'s API, which ensures that it is protected from centralized points of failure and censorship.',
+    answer: 'Your data is stored in a decentralized way via Jackal Network’s API, which ensures that it is protected from centralized points of failure and censorship.',
   },
 ];
 
@@ -33,7 +33,7 @@ export default function Faq() {
                 type="button"
                 data-bs-toggle="collapse"
                 data-bs-target={`#${item.id}`}
-                aria-expanded={index === 0}
+                aria-expanded={index === 0 ? 'true' : 'false'}
                 aria-controls={item.id}
               >
                 {item.question}
