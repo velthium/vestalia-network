@@ -1,21 +1,38 @@
 'use client';
 
 import { initializeJackal } from '@/lib/jackalClient';
+import { useUser } from '@/context/UserContext';
 import PageTitle from '@/components/PageTitle';
 import { ClipLoader } from 'react-spinners';
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import Image from 'next/image';
 
 const Login = () => {
-  const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [status, setStatus] = useState('');
+  const { setUserName } = useUser();
+  const router = useRouter();
 
   const handleLoginClick = async () => {
     try {
       setIsLoading(true);
       setStatus('Connecting...');
+
       const { client, storage } = await initializeJackal();
-      setStatus('Connected successfully!');
+
+      const userName = client?.details?.name;
+
+      if (userName) {
+        setUserName(userName);
+        localStorage.setItem('userName', userName);
+        setStatus('Connected successfully!');
+
+        router.push('/pricing');
+      } else {
+        setStatus('Connected, but no user name found.');
+      }
+
       console.debug('Jackal client:', client);
       console.log('Storage:', storage);
     } catch (error) {
@@ -54,7 +71,7 @@ const Login = () => {
       </button>
 
       {status && status !== 'Connecting...' && (
-        <div className='d-flex align-items-center gap-3 justify-content-center'>
+        <div className="d-flex align-items-center gap-3 justify-content-center">
           <p className={`mt-3 ${status.includes('success') ? 'text-success' : 'text-danger'}`}>
             {status}
           </p>
