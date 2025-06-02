@@ -2,11 +2,12 @@
 
 import { initializeJackal } from '@/lib/jackalClient';
 import PageTitle from '@/components/PageTitle';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { showSuccessAlert } from '@/utils/alerts/success';
 import { showErrorAlert } from '@/utils/alerts/error';
+import { storageAsUsd, storageAsJkl } from '@/lib/pricingUtils'; // <-- importe tes fonctions
 
 const MAX_SIZE = 999;
 const MAX_YEARS = 90;
@@ -15,21 +16,32 @@ export default function Home() {
   const [size, setSize] = useState(1);
   const [years, setYears] = useState(1);
   const [unit, setUnit] = useState('GB');
+  const [estimatedUsd, setEstimatedUsd] = useState('');
+  const [estimatedJkl, setEstimatedJkl] = useState('');
 
   const { userName } = useUser();
   const router = useRouter();
 
+  const updateEstimates = () => {
+    const tb = unit === 'GB' ? size / 1000 : size;
+    const jklPrice = 0.1; // Remplace avec une API si besoin
+    const ref = false;
+
+    setEstimatedUsd(storageAsUsd(years, tb, ref));
+    setEstimatedJkl(storageAsJkl(years, tb, jklPrice, ref));
+  };
+
+  useEffect(() => {
+    updateEstimates();
+  }, [size, years, unit]);
+
   async function handlePurchase() {
     try {
       const { storage } = await initializeJackal();
-
       const storageSize = unit === 'GB' ? size : size * 1000;
       const days = years * 365;
 
-      const options = {
-        gb: storageSize,
-        days,
-      };
+      const options = { gb: storageSize, days };
 
       await storage.purchaseStoragePlan(options);
 
@@ -41,12 +53,6 @@ export default function Home() {
       console.log(err);
       showErrorAlert('Oops!', err?.txResponse?.rawLog || err.message || 'Something went wrong');
     }
-  }
-
-  function handleUnitChange(event) {
-    const selectedUnit = event.target.value;
-    setUnit(selectedUnit);
-    setSize((prevSize) => Math.min(Math.max(1, prevSize), MAX_SIZE));
   }
 
   return (
@@ -66,18 +72,16 @@ export default function Home() {
                 min={1}
                 max={MAX_SIZE}
                 value={size}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  if (!isNaN(value)) {
-                    setSize(Math.min(Math.max(1, value), MAX_SIZE));
-                  }
-                }}
+                onChange={(e) => setSize(Math.min(Math.max(1, Number(e.target.value)), MAX_SIZE))}
               />
               <span className="input-group-text">{unit}</span>
             </div>
             <div className="d-flex justify-content-center pt-3">
               {['GB', 'TB'].map((value, index) => (
-                <div className={`form-check text-start ${index > 0 ? 'ms-3' : ''}`} key={value}>
+                <div
+                  className={`form-check text-start ${index > 0 ? 'ms-3' : ''}`}
+                  key={value}
+                >
                   <input
                     className="form-check-input"
                     type="radio"
@@ -85,7 +89,7 @@ export default function Home() {
                     id={`unit-${value.toLowerCase()}`}
                     value={value}
                     checked={unit === value}
-                    onChange={handleUnitChange}
+                    onChange={() => setUnit(value)}
                   />
                   <label className="form-check-label" htmlFor={`unit-${value.toLowerCase()}`}>
                     {value}
@@ -105,17 +109,19 @@ export default function Home() {
                 min="1"
                 max={MAX_YEARS}
                 value={years}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  if (!isNaN(value)) {
-                    setYears(Math.min(Math.max(1, value), MAX_YEARS));
-                  }
-                }}
+                onChange={(e) => setYears(Math.min(Math.max(1, Number(e.target.value)), MAX_YEARS))}
               />
               <span className="input-group-text">Years</span>
             </div>
           </div>
         </div>
+
+        {estimatedUsd && estimatedJkl && (
+          <div className="text-center my-4">
+            <div>Estimated cost: <strong>{estimatedUsd} USD</strong></div>
+            <div>Approx. <strong>{estimatedJkl}</strong></div>
+          </div>
+        )}
 
         <hr className="my-5 w-75 m-auto" />
 
