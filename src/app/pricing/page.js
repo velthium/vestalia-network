@@ -24,7 +24,7 @@ export default function Home() {
 
   const updateEstimates = () => {
     const tb = unit === 'GB' ? size / 1000 : size;
-    const jklPrice = 0.1; // Remplace avec une API si besoin
+    const jklPrice = 0.05376;
     const ref = false;
 
     setEstimatedUsd(storageAsUsd(years, tb, ref));
