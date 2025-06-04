@@ -1,13 +1,14 @@
 'use client';
 
+import { storageAsUsd, storageAsJkl } from '@/lib/pricingUtils';
+import { showSuccessAlert } from '@/utils/alerts/success';
 import { initializeJackal } from '@/lib/jackalClient';
+import { showErrorAlert } from '@/utils/alerts/error';
+import { useUser } from '@/context/UserContext';
+import { FaHdd, FaClock } from 'react-icons/fa';
 import PageTitle from '@/components/PageTitle';
 import { useState, useEffect } from 'react';
-import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
-import { showSuccessAlert } from '@/utils/alerts/success';
-import { showErrorAlert } from '@/utils/alerts/error';
-import { storageAsUsd, storageAsJkl } from '@/lib/pricingUtils'; // <-- importe tes fonctions
 
 const MAX_SIZE = 999;
 const MAX_YEARS = 90;
@@ -63,7 +64,9 @@ export default function Home() {
       <div className="p-5 bg-ivory rounded shadow-sm">
         <div className="d-flex justify-content-evenly flex-wrap">
           <div className="form-group">
-            <label htmlFor="size-input" className="form-label">Enter Storage Size:</label>
+            <label htmlFor="size-input" className="form-label d-flex align-items-center gap-2">
+              <FaHdd size={32} color="#F4B400" className="icon-yellow me-2" /> Enter Storage Size:
+            </label>
             <div className="input-group w-100 m-auto">
               <input
                 type="number"
@@ -100,7 +103,9 @@ export default function Home() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="years-input" className="form-label">Enter Duration:</label>
+            <label htmlFor="years-input" className="form-label d-flex align-items-center gap-2">
+              <FaClock size={32} color="#F4B400" className="icon-yellow me-2" /> Enter Duration:
+            </label>
             <div className="input-group w-100 m-auto">
               <input
                 type="number"
