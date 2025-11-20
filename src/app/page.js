@@ -5,45 +5,26 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 export default function Home() {
-  const [stats, setStats] = useState([
-    { label: 'Total Users', value: 0 },
-    { label: 'Total Files', value: 0 },
-    { label: 'Available space', value: 0 },
-  ]);
+  const [stats, setStats] = useState([]);
 
 const [loading, setLoading] = useState(true);
 
 useEffect(() => {
   const fetchStats = async () => {
     try {
-      const [usersRes, filesRes, spaceRes] = await Promise.all([
-        fetch('https://stats-api.jackallabs.io/total_users'),
-        fetch('https://stats-api.jackallabs.io/total_files'),
-        fetch('https://stats-api.jackallabs.io/available_space'),
+      const getLastValue = (arr) => arr?.data?.at(-1)?.value ?? 0;
+
+      const [users, files, space] = await Promise.all([
+        fetch("https://stats-api.jackallabs.io/total_users").then(r => r.json()),
+        fetch("https://stats-api.jackallabs.io/total_files").then(r => r.json()),
+        fetch("https://stats-api.jackallabs.io/available_space").then(r => r.json()),
       ]);
 
-      const usersData = await usersRes.json();
-      const filesData = await filesRes.json();
-      const spaceData = await spaceRes.json();
-
-      const totalUsers = usersData?.data?.[usersData.data.length - 1]?.value;
-      const totalFiles = filesData?.data?.[filesData.data.length - 1]?.value;
-      const availableSpace = spaceData?.data?.[spaceData.data.length - 1]?.value;
-
-      setStats(prevStats =>
-        prevStats.map(stat => {
-          switch (stat.label) {
-            case 'Total Users':
-              return { ...stat, value: totalUsers || 0 };
-            case 'Total Files':
-              return { ...stat, value: totalFiles || 0 };
-            case 'Available space':
-              return { ...stat, value: availableSpace || 0 };
-            default:
-              return stat;
-          }
-        })
-      );
+      setStats([
+        { label: "Total Users", value: getLastValue(users) },
+        { label: "Total Files", value: getLastValue(files) },
+        { label: "Available space", value: getLastValue(space) },
+      ]);
     } catch (error) {
       console.error('Erreur lors du fetch :', error);
     } finally {
