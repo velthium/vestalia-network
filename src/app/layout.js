@@ -25,10 +25,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="d-flex flex-column min-vh-100">
         <UserProvider>
           <Header />
-          <main className="h-100 text-center py-3">
+          <main className="h-100 text-center flex-fill py-3">
             {children}
             <BootstrapClient />
           </main>

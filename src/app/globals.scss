@@ -4,42 +4,26 @@ $color-cornsilk: #fff8dc;
 $color-highlight: #ffc107;
 $color-sunshine: #ffdb6d;
 $soft-ivory: #FFFDF4;
+$custom-purple: #E0CCFF;
 
-@font-face {
-  font-family: 'DogicaPixel';
-  src: url('/fonts/dogicapixel.ttf');
+body {
+  background: linear-gradient(0deg, #ffb08a 0%, #e8f0ff 100%);
 }
 
 * {
-  font-family: 'DogicaPixel', sans-serif;
+  font-family: system-ui, sans-serif;
   padding: 0;
   margin: 0;
 }
 
-body {
-  background-color: $color-cornsilk;
-}
-
-header {
-  box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;
-}
-
-footer {
-  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+.bg-purple {
+  background: $custom-purple;
 }
 
 .accordion-button:focus,
 .accordion-button:not(.collapsed) {
   background-color: #ffc107 !important; // Bootstrap warning
   box-shadow: none;
-}
-
-.nav-link:focus, .text-cornsilk, a.nav-link, button.nav-link {
-  color: $color-cornsilk;
-}
-
-.nav-link:hover, a.nav-link:hover, button.nav-link:hover {
-  color: $color-highlight;
 }
 
 .form-check-input:checked {

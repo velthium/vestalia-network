@@ -14,11 +14,11 @@ function Header() {
 
     return (
         <header>
-            <nav className="navbar navbar-expand-lg navbar-dark bg-dark p-0">
+            <nav className="navbar navbar-expand-lg p-0">
                 <div className="container-fluid">
                     <Link className="navbar-brand d-flex align-items-center" href="/">
                         <Image
-                            src="/images/Logo.webp"
+                            src="/images/Logo.png"
                             alt="Logo Vestalia Network"
                             width={50}
                             height={50}
@@ -26,7 +26,7 @@ function Header() {
                             loading="eager"
                             priority
                         />
-                        <span className="ms-3">Vestalia Network</span>
+                        <span className="fw-bolder">Vestalia Network</span>
                     </Link>
 
                     <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText" aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">

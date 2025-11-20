@@ -58,50 +58,64 @@ useEffect(() => {
   return (
     <div className="container text-center py-5">
       <PageTitle title="Decentralized Storage" />
-      <h2 className='h5 my-3'>Unlock the power of decentralized storage with unparalleled flexibility. Choose exactly how much space you need for the duration you want, without unnecessary complexity.</h2>
-      <div className='d-flex flex-column flex-md-row justify-content-around border p-md-2 bg-warning align-items-center rounded w-75 m-auto'>
+      <h2 className='h5 my-3'>Store and manage your data securely on a decentralized encrypted network.</h2>
+      <div className="d-flex flex-column flex-md-row justify-content-around 
+                p-3 bg-white shadow-sm rounded-4 w-75 m-auto">
       {loading ? (
         <p>Loading statistics...</p>
       ) : (
         stats.map((stat, i) => (
           <div key={i} className="m-2">
-            <p>{stat.label}</p>
-            <p>{stat.value}</p>
+            <p className="fw-bold">{stat.label}</p>
+            <p className="fs-5">{stat.value}</p>
           </div>
         ))
       )}
       </div>
-      <p className="my-5">This website serves as a complement to Jackal Vault, offering users the opportunity to purchase additional storage space. It is designed specifically for those who need extra room to securely store their data, enhancing the Jackal Vault experience.</p>
-      <div className='d-flex flex-column flex-sm-row justify-content-around bg-sunshine rounded'>
-      <figure className='figure'>
-        <a className='text-decoration-none' href='https://www.jackalprotocol.com/' target='_blank' aria-label="Visit the Jackal website (opens in new tab)" rel="noopener noreferrer">
-          <figcaption className='figure-caption p-2'>Jackal website</figcaption>
-          <Image
-              src="/images/JackalLogo.webp"
+      <p className="my-5">This website offers a decentralized storage service where you can securely store your data without relying on any other platform.</p>
+
+<button
+  className="btn btn-primary rounded-pill px-4"
+  style={{ background: '#7B61FF', borderColor: '#7B61FF' }}
+>
+  Get Started
+</button>
+<div className="container my-5">
+<div className="row g-4">
+
+  <div className="col-12 col-md-6">
+    <div className="p-4 bg-white shadow-sm rounded-4 text-center">
+      <Image
+              src="/images/ProtectedLogo.png"
               alt="Jackal Network logo"
-              width={300}
-              height={300}
-              className="img-fluid border rounded shadow homepage-pictures"
+              width={200}
+              height={200}
+              className="img-fluid homepage-pictures"
               loading="lazy"
           />
-        </a>
-      </figure>
-      <figure className='figure'>
-      <a className='text-decoration-none' href='https://vault.jackalprotocol.com/' target='_blank' aria-label="Visit the Jackal Vault website (opens in new tab)" rel="noopener noreferrer">
-        <figcaption className='figure-caption p-2'>Jackal Application</figcaption>
-        <Image
-            src="/images/Cloud.webp"
+      <h5 className="mb-3">End-to-end encryption</h5>
+    </div>
+  </div>
+
+  <div className="col-12 col-md-6">
+    <div className="p-4 bg-white shadow-sm rounded-4 text-center">
+      <Image
+            src="/images/UltrafastLogo.png"
             alt="Cloud storage icon"
-            width={300}
-            height={300}
-            className="img-fluid border rounded shadow homepage-pictures"
+            width={200}
+            height={200}
+            className="img-fluid homepage-pictures"
             loading="lazy"
         />
-      </a>
-      </figure>
-      </div>
+      <h5 className="mb-3">Ultra fast sync</h5>
+    </div>
+  </div>
+
+</div>
+</div>
+
       <h2 className='mt-5 pb-3'>The Team</h2>
-      <section  className='bg-warning m-md-3 p-md-5 py-3'>
+      <section className='bg-purple m-md-3 p-md-5 py-3 rounded'>
         <h3>Velthium</h3>
         <a href='https://gitopia.com/dark-velthium' target='_blank'>
           <Image
