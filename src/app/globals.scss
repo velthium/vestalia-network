@@ -22,7 +22,7 @@ body {
 
 .accordion-button:focus,
 .accordion-button:not(.collapsed) {
-  background-color: #ffc107 !important; // Bootstrap warning
+  background-color: $custom-purple !important; // Bootstrap warning
   box-shadow: none;
 }
 

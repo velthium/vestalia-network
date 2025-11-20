@@ -48,7 +48,7 @@ const Login = () => {
       <PageTitle title="Connect your Wallet" />
 
       <button
-        className="btn mt-4 bg-warning d-flex align-items-center justify-content-center gap-3 mx-auto px-4 py-2"
+        className="btn mt-4 bg-purple d-flex align-items-center justify-content-center gap-3 mx-auto px-4 py-2"
         onClick={handleLoginClick}
         disabled={isLoading}
         aria-label="Connect with Keplr wallet"
