@@ -71,3 +71,25 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%; /* Circular */
   cursor: pointer;
 }
+
+/* Drag & Drop visual state: show a purple border around the viewport */
+body.drag-over::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 6px solid $custom-purple;
+  border-radius: 8px;
+  z-index: 9999;
+  transition: opacity 160ms ease, transform 160ms ease;
+  opacity: 1;
+}
+
+/* subtle fade when removed */
+body::before {
+  transition: opacity 160ms ease, transform 160ms ease;
+}

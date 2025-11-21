@@ -1,39 +1,20 @@
 import BootstrapClient from '@/components/BootstrapClient';
-import { Geist, Geist_Mono } from "next/font/google";
 import { WalletProvider } from "@/context/WalletContext";
 import { UserProvider } from "@/context/UserContext";
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-
-
 import "./globals.scss";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata = {
-  title: "Vestalia Network",
-  description: "Buy Jackal Storage directly from the website.",
-};
+export const metadata = { title: "Vestalia Network", description: "Buy Jackal Storage directly from the website." };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body className="d-flex flex-column min-vh-100">
         <WalletProvider>
           <UserProvider>
             <Header />
-            <main className="h-100 text-center flex-fill py-3">
-              {children}
-              <BootstrapClient />
-            </main>
+            <main className="h-100 text-center flex-fill py-3">{children}<BootstrapClient /></main>
             <Footer />
           </UserProvider>
         </WalletProvider>
