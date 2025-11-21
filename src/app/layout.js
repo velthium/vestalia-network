@@ -1,6 +1,7 @@
 import BootstrapClient from '@/components/BootstrapClient';
 import { Geist, Geist_Mono } from "next/font/google";
-import { UserProvider } from '@/context/UserContext';
+import { WalletProvider } from "@/context/WalletContext";
+import { UserProvider } from "@/context/UserContext";
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -26,14 +27,16 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="d-flex flex-column min-vh-100">
-        <UserProvider>
-          <Header />
-          <main className="h-100 text-center flex-fill py-3">
-            {children}
-            <BootstrapClient />
-          </main>
-          <Footer />
-        </UserProvider>
+        <WalletProvider>
+          <UserProvider>
+            <Header />
+            <main className="h-100 text-center flex-fill py-3">
+              {children}
+              <BootstrapClient />
+            </main>
+            <Footer />
+          </UserProvider>
+        </WalletProvider>
       </body>
     </html>
   );

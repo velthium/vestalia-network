@@ -2,7 +2,7 @@
 import Swal from 'sweetalert2';
 
 export const showErrorAlert = (title, text) => {
-  Swal.fire({
+  return Swal.fire({
     title: title || 'Error!',
     text: text || 'Something went wrong.',
     icon: 'error',

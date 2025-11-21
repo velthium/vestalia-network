@@ -1,43 +1,44 @@
-'use client';
+// src/app/login/page.js
+"use client";
 
-import { initializeJackal } from '@/lib/jackalClient';
-import { useUser } from '@/context/UserContext';
-import PageTitle from '@/components/PageTitle';
-import { ClipLoader } from 'react-spinners';
-import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
-import Image from 'next/image';
+import { useState } from "react";
+import { useWallet } from "@/context/WalletContext";
+import { useUser } from "@/context/UserContext";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import PageTitle from "@/components/PageTitle";
+import { ClipLoader } from "react-spinners";
 
-const Login = () => {
+export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
+
+  const { connectWallet, client } = useWallet();
   const { setUserName } = useUser();
   const router = useRouter();
 
   const handleLoginClick = async () => {
     try {
       setIsLoading(true);
-      setStatus('Connecting...');
+      setStatus("Connecting...");
 
-      const { client, storage } = await initializeJackal();
-
-      const userName = client?.details?.name;
-
-      if (userName) {
-        setUserName(userName);
-        localStorage.setItem('userName', userName);
-        setStatus('Connected successfully!');
-
-        router.push('/pricing');
-      } else {
-        setStatus('Connected, but no user name found.');
+      const success = await connectWallet();
+      if (!success) {
+        setStatus("Connection failed!");
+        return;
       }
 
-      console.debug('Jackal client:', client);
-      console.log('Storage:', storage);
+      const userName = client?.details?.name;
+      if (userName) {
+        setUserName(userName);
+        localStorage.setItem("userName", userName);
+      }
+
+      setStatus("Connected successfully!");
+      router.push("/pricing");
     } catch (error) {
-      setStatus('Connection failed!');
-      console.error('Error during connection:', error);
+      console.error("Error during connection:", error);
+      setStatus("Connection failed!");
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +59,7 @@ const Login = () => {
         ) : (
           <Image
             src="/images/Keplr.svg"
-            alt="Logo Vestalia Network"
+            alt="Keplr logo"
             width={40}
             height={40}
             className="rounded"
@@ -66,19 +67,19 @@ const Login = () => {
           />
         )}
         <span className="fw-semibold fs-5 my-auto">
-          {isLoading ? 'Connecting...' : 'Keplr Wallet'}
+          {isLoading ? "Connecting..." : "Keplr Wallet"}
         </span>
       </button>
 
-      {status && status !== 'Connecting...' && (
-        <div className="d-flex align-items-center gap-3 justify-content-center">
-          <p className={`mt-3 ${status.includes('success') ? 'text-success' : 'text-danger'}`}>
-            {status}
-          </p>
-        </div>
+      {status && (
+        <p
+          className={`mt-3 ${
+            status.toLowerCase().includes("success") ? "text-success" : "text-danger"
+          }`}
+        >
+          {status}
+        </p>
       )}
     </div>
   );
-};
-
-export default Login;
+}
