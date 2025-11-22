@@ -20,6 +20,21 @@ body {
   background: $custom-purple;
 }
 
+.bg-soft-purple {
+  background-color: #F8F4FF;
+}
+
+.btn-purple {
+  background-color: #7B61FF;
+  border-color: #7B61FF;
+  color: white;
+  &:hover {
+    background-color: #6a50e0;
+    border-color: #6a50e0;
+    color: white;
+  }
+}
+
 .accordion-button:focus,
 .accordion-button:not(.collapsed) {
   background-color: $custom-purple !important; // Bootstrap warning
