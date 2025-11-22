@@ -3,7 +3,7 @@ import { storageAsUsd, storageAsJkl } from '@/lib/pricingUtils';
 import { showSuccessAlert } from '@/utils/alerts/success';
 import { initializeJackal } from '@/lib/jackalClient';
 import { showErrorAlert } from '@/utils/alerts/error';
-import { useUser } from '@/context/UserContext';
+import { useWallet } from '@/context/WalletContext';
 import { FaHdd, FaClock } from 'react-icons/fa';
 import PageTitle from '@/components/PageTitle';
 import { useState, useEffect } from 'react';
@@ -16,7 +16,7 @@ export default function Home() {
   const [unit, setUnit] = useState('GB');
   const [estimatedUsd, setEstimatedUsd] = useState('');
   const [estimatedJkl, setEstimatedJkl] = useState('');
-  const { userName } = useUser();
+  const { connected, connectWallet } = useWallet();
 
   useEffect(() => {
     const tb = unit === 'GB' ? size / 1000 : size;
@@ -58,7 +58,11 @@ export default function Home() {
             </div>
             {estimatedUsd && estimatedJkl && <div className="text-center my-4"><div>Estimated cost: <strong>{estimatedUsd} USD</strong></div><div>Approx. <strong>{estimatedJkl}</strong></div></div>}
             <hr className="my-5 w-75 m-auto" />
-            {userName ? <button className="btn btn-purple px-4 py-2 shadow-sm mx-auto" onClick={handlePurchase}>Purchase Storage Plan</button> : <a href="/login" className="btn btn-purple px-4 py-2 shadow-sm mx-auto">Login to purchase</a>}
+            {connected ? (
+              <button className="btn btn-purple px-4 py-2 shadow-sm mx-auto" onClick={handlePurchase}>Purchase Storage Plan</button>
+            ) : (
+              <button className="btn btn-purple px-4 py-2 shadow-sm mx-auto" onClick={connectWallet}>Connect Wallet to Purchase</button>
+            )}
           </div>
         </div>
 

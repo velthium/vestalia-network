@@ -1,9 +1,5 @@
 @use 'bootstrap/scss/bootstrap';
 
-$color-cornsilk: #fff8dc;
-$color-highlight: #ffc107;
-$color-sunshine: #ffdb6d;
-$soft-ivory: #FFFDF4;
 $custom-purple: #E0CCFF;
 
 body {
@@ -42,49 +38,8 @@ body {
 }
 
 .form-check-input:checked {
-  background-color: #f59f00;
-  border-color: #f59f00;
-}
-
-.text-cornsilk {
-  color: cornsilk;
-}
-
-.text-cornsilk a {
-  color: inherit;
-}
-
-.bg-sunshine {
-  background-color: $color-sunshine;
-}
-
-.bg-ivory {
-  background-color: $soft-ivory;
-}
-
-input[type="range"] {
-  width: 100%; /* Full width */
-  height: 8px; /* Track height */
-  background: $color-highlight; /* Track color */
-  border-radius: 5px; /* Slightly rounded track */
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  background: $color-highlight; /* Thumb color */
-  border-radius: 50%; /* Circular */
-  cursor: pointer; /* Pointer on hover */
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: $color-highlight; /* Thumb color */
-  border-radius: 50%; /* Circular */
-  cursor: pointer;
+  background-color: #7B61FF;
+  border-color: #7B61FF;
 }
 
 /* Drag & Drop visual state: show a purple border around the viewport */
