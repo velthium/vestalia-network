@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { showErrorAlert } from "@/utils/alerts/error";
@@ -15,11 +15,15 @@ export default function Vault() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
   const [dragOverId, setDragOverId] = useState(null);
+  const dropTargetRef = useRef(null);
   const { connected, loading: walletLoading, storage } = useWallet();
   const router = useRouter();
   const [blocked, setBlocked] = useState(false);
+  const [selectedItemInfo, setSelectedItemInfo] = useState(null);
 
   const logIfNotUserRejected = (err, prefix = '') => { const msg = err?.message || String(err || ''); if (/request rejected|user rejected/i.test(msg)) console.debug(prefix, 'user rejected signer request:', msg); else console.error(prefix, err); };
 
@@ -42,6 +46,16 @@ export default function Vault() {
         setLoading(true);
         try { await safeUpgradeSigner(storage); } catch (e) { console.debug('vault:init safeUpgradeSigner unexpected error:', e?.message || e); }
         await storage.initStorage();
+        
+        // Load provider pool once at initialization
+        try {
+          const availableProviders = await storage.getAvailableProviders();
+          const providerIps = await storage.findProviderIps(availableProviders);
+          await storage.loadProviderPool(providerIps);
+        } catch (e) {
+          console.debug('vault:init loadProviderPool error:', e?.message || e);
+        }
+        
         setStorageHandler(storage);
         await refreshDirectory(pathStackIds.join('/'), storage);
         setStatusMessage("");
@@ -115,7 +129,7 @@ export default function Vault() {
   const handleDropOnFolder = async (item, e) => {
     e.preventDefault();
     e.stopPropagation();
-    e.__handled = true;
+    dropTargetRef.current = 'folder';
     setDragOverId(null);
     if (!storageHandler) return;
     const files = e.dataTransfer?.files;
@@ -137,10 +151,20 @@ export default function Vault() {
       logIfNotUserRejected(err, 'handleDropOnFolder');
       if (await handleAccountMissing(err)) return;
       setStatusMessage('Upload failed: ' + (err?.message || String(err)));
-    } finally { setUploading(false); }
+    } finally { 
+      setUploading(false); 
+      dropTargetRef.current = null;
+    }
   };
 
   const handleDropOnRoot = async (e) => {
+    // Vérifier si on a droppé sur un folder item (pas sur le conteneur général)
+    const target = e.target;
+    const folderItem = target.closest('.list-group-item[data-is-folder="true"]');
+    if (folderItem) {
+      return; // Laisser handleDropOnFolder gérer ça
+    }
+    
     e.preventDefault();
     if (!storageHandler) return;
     const files = e.dataTransfer?.files;
@@ -163,18 +187,6 @@ export default function Vault() {
       setStatusMessage('Upload failed: ' + (err?.message || String(err)));
     } finally { setUploading(false); }
   };
-
-  useEffect(() => {
-    const onWindowDragOver = (e) => e.preventDefault();
-    const onWindowDrop = (e) => { 
-      if (e.__handled) return;
-      e.preventDefault(); 
-      handleDropOnRoot(e); 
-    };
-    window.addEventListener('dragover', onWindowDragOver);
-    window.addEventListener('drop', onWindowDrop);
-    return () => { window.removeEventListener('dragover', onWindowDragOver); window.removeEventListener('drop', onWindowDrop); };
-  }, [storageHandler, pathStackIds]);
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -241,33 +253,122 @@ export default function Vault() {
   };
 
   const handleDownload = async (item) => {
+    if (!storageHandler) return;
     try {
+      setDownloading(true);
+      setDownloadProgress(0);
       setStatusMessage(`Downloading ${item.name}...`);
+      
+      const tracker = { progress: 0, chunks: [] };
+      // Poll tracker for progress updates
+      const progressInterval = setInterval(() => {
+        if (typeof tracker.progress === 'number') {
+          let p = tracker.progress;
+          // If it seems to be a ratio (0-1), convert to percentage
+          if (p <= 1) p *= 100;
+          setDownloadProgress(Math.min(Math.round(p), 100));
+        }
+      }, 500);
+
       const fullPath = pathStackIds.join("/") + "/" + (item.raw?.fileMeta?.name || item.name);
-      const blob = await downloadFile(storageHandler, fullPath);
+      
+      const blob = await downloadFile(storageHandler, fullPath, tracker, item.raw);
+      
+      clearInterval(progressInterval);
+      setDownloadProgress(100);
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = item.name; a.click();
+      a.href = url;
+      a.download = item.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      
       setStatusMessage("Download complete!");
-    } catch (err) { setStatusMessage("Download failed: " + err.message); }
+      setTimeout(() => {
+        setDownloadProgress(0);
+        setStatusMessage("");
+      }, 3000);
+    } catch (err) {
+      console.error("Download error:", err);
+      logIfNotUserRejected(err, 'handleDownload');
+      if (await handleAccountMissing(err)) return;
+      setStatusMessage("Download failed: " + (err?.message || String(err)));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleShowInfo = (item) => {
+    const fullPath = pathStackIds.join("/") + "/" + (item.raw?.fileMeta?.name || item.name);
+    // Try to find properties in various places they might be
+    const ulid = item.raw?.ulid || item.raw?.fileMeta?.ulid || item.raw?.cid || 'N/A';
+    const merkle = item.raw?.merkle || item.raw?.merkleRoot || item.raw?.fileMeta?.merkle || item.raw?.fileMeta?.merkleRoot || 'N/A';
+    const fid = item.raw?.fid || item.raw?.fileMeta?.fid || 'N/A';
+
+    setSelectedItemInfo({
+      ...item,
+      fullPath: fullPath.replace(/^\/?s\//, ''),
+      ulid,
+      merkle,
+      fid
+    });
   };
 
   if (walletLoading) return <div className="container py-5 text-center">Loading wallet...</div>;
   if (!connected) return <div className="container py-5 text-center"><h1>🔐 Please connect your wallet first</h1><a href="/login" className="btn btn-primary mt-4">Go to Login</a></div>;
 
   return (
-    <div className="container py-5" onDragOver={handleDragOver} onDrop={handleDropOnRoot} onDragEnter={(e) => e.preventDefault()} onDragLeave={(e) => e.preventDefault()}>
+    <div className="container py-5" onDragOver={handleDragOver} onDrop={handleDropOnRoot}>
       <h1>☁️ My Jackal Vault</h1>
       {statusMessage && <div className="alert alert-info">{statusMessage}</div>}
-      {uploading && uploadProgress > 0 && (
-        <div className="mb-3">
-          <div className="progress" style={{ height: '25px' }}>
-            <div className="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style={{ width: `${uploadProgress}%` }} aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100">{uploadProgress}%</div>
+      
+      {selectedItemInfo && (
+        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">File Info: {selectedItemInfo.name}</h5>
+                <button type="button" className="btn-close" onClick={() => setSelectedItemInfo(null)}></button>
+              </div>
+              <div className="modal-body">
+                <p><strong>Name:</strong> {selectedItemInfo.name}</p>
+                <p><strong>Type:</strong> {selectedItemInfo.isDir ? 'Folder' : 'File'}</p>
+                <p><strong>Path:</strong> {selectedItemInfo.fullPath}</p>
+                {!selectedItemInfo.isDir && <p><strong>Size:</strong> {(selectedItemInfo.size / (1024 * 1024)).toFixed(2)} MB</p>}
+                <p><strong>ULID:</strong> <small className="text-muted">{selectedItemInfo.ulid}</small></p>
+                {!selectedItemInfo.isDir && selectedItemInfo.merkle !== 'N/A' && (
+                  <p><strong>Merkle Root:</strong> <small className="text-muted text-break">{selectedItemInfo.merkle}</small></p>
+                )}
+                {!selectedItemInfo.isDir && selectedItemInfo.fid !== 'N/A' && (
+                  <p><strong>FID:</strong> <small className="text-muted text-break">{selectedItemInfo.fid}</small></p>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setSelectedItemInfo(null)}>Close</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
-      <div className="d-flex gap-2 my-3" onDragOver={handleDragOver} onDrop={handleDropOnRoot}>
+
+      {uploading && uploadProgress > 0 && (
+        <div className="mb-3">
+          <div className="progress" style={{ height: '25px' }}>
+            <div className="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style={{ width: `${uploadProgress}%` }} aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100">Upload: {uploadProgress}%</div>
+          </div>
+        </div>
+      )}
+      {downloading && downloadProgress > 0 && (
+        <div className="mb-3">
+          <div className="progress" style={{ height: '25px' }}>
+            <div className="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style={{ width: `${downloadProgress}%`, backgroundColor: '#E0CCFF', color: 'black' }} aria-valuenow={downloadProgress} aria-valuemin="0" aria-valuemax="100">Download: {downloadProgress}%</div>
+          </div>
+        </div>
+      )}
+      <div className="d-flex gap-2 my-3">
         <button className="btn btn-secondary" onClick={handleGoBack} disabled={pathStackIds.length <= JACKAL_ROOT.length || loading}>⬅ Back</button>
         <button className="btn btn-primary" onClick={handleCreateFolder} disabled={loading}>+ New Folder</button>
         <div className="btn btn-success position-relative overflow-hidden">{uploading ? "Uploading..." : "+ Upload File"}<input type="file" className="position-absolute top-0 start-0 opacity-0 w-100 h-100" onChange={handleFileUpload} disabled={uploading || loading} /></div>
@@ -278,12 +379,14 @@ export default function Vault() {
           {items.length === 0 ? <li className="list-group-item text-muted">This folder is empty.</li> : items.map((item, i) => {
             const isFolder = item.isDir || item.type === "folder";
             return (
-              <li key={i} className={`list-group-item d-flex justify-content-between align-items-center ${isFolder && dragOverId === (item?.raw?.name || item.name) ? 'bg-light' : ''}`} onDragOver={isFolder ? handleDragOver : undefined} onDragEnter={isFolder ? () => handleDragEnterFolder(item) : undefined} onDragLeave={isFolder ? () => handleDragLeaveFolder(item) : undefined} onDrop={isFolder ? (e) => handleDropOnFolder(item, e) : undefined}>
+              <li key={i} className={`list-group-item d-flex justify-content-between align-items-center ${isFolder && dragOverId === (item?.raw?.name || item.name) ? 'bg-light' : ''}`} data-is-folder={isFolder ? "true" : "false"} onDragOver={isFolder ? handleDragOver : undefined} onDragEnter={isFolder ? () => handleDragEnterFolder(item) : undefined} onDragLeave={isFolder ? () => handleDragLeaveFolder(item) : undefined} onDrop={isFolder ? (e) => handleDropOnFolder(item, e) : undefined}>
                 <div style={{ cursor: isFolder ? "pointer" : "default" }} onClick={() => isFolder && handleOpenFolder(item)} className="d-flex align-items-center gap-2">
                   <span>{isFolder ? "📁" : "📄"}</span><strong>{item.name}</strong>
                   {!isFolder && <small className="text-muted ms-2">{(item.size / (1024 * 1024)).toFixed(2)} MB</small>}
                 </div>
                 <div className="d-flex gap-2">
+                  <button className="btn btn-sm btn-outline-info" onClick={() => handleShowInfo(item)}>ℹ</button>
+                  {!isFolder && <button className="btn btn-sm btn-outline-primary" onClick={() => handleDownload(item)} disabled={downloading}>⬇</button>}
                   <button className="btn btn-sm btn-outline-secondary" onClick={() => handleRenameItem(item)}>🖉</button>
                   <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteItem(item)}>🗑</button>
                 </div>

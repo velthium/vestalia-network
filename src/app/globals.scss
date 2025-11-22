@@ -7,7 +7,7 @@ $soft-ivory: #FFFDF4;
 $custom-purple: #E0CCFF;
 
 body {
-  background: linear-gradient(0deg, #ffb08a 0%, #e8f0ff 100%);
+  background: linear-gradient(0deg, $custom-purple 0%, #e8f0ff 100%);
 }
 
 * {

@@ -139,8 +139,58 @@ export async function loadDirectoryContents(handler, path, ownerCandidates = [])
     return [];
 }
 
-export async function downloadFile(handler, filePath) {
-    return await handler.downloadFile(filePath);
+export async function downloadFile(handler, filePath, tracker, raw) {
+    // Remove 's/' prefix if present
+    let cleanPath = filePath.replace(/^s\//, '');
+    
+    // Ensure tracker exists as it is required by the SDK
+    if (!tracker) {
+        tracker = { progress: 0, chunks: [] };
+    }
+    
+    // Load provider pool first to avoid "No providers found" error
+    try {
+        const availableProviders = await handler.getAvailableProviders();
+        if (availableProviders && availableProviders.length > 0) {
+            const providerIps = await handler.findProviderIps(availableProviders);
+            await handler.loadProviderPool(providerIps);
+        } else {
+            console.warn('downloadFile: No available providers found via getAvailableProviders');
+        }
+    } catch (e) {
+        console.debug('downloadFile: loadProviderPool error:', e?.message || e);
+    }
+
+    // Try downloadByUlid if available and we have the ULID
+    if (raw && (raw.ulid || raw.fileMeta?.ulid) && typeof handler.downloadByUlid === 'function') {
+        try {
+            const ulid = raw.ulid || raw.fileMeta?.ulid;
+            const ulidStr = typeof ulid === 'string' ? ulid : ulid.toString();
+            
+            let userAddress = null;
+            if (handler.jackalClient && typeof handler.jackalClient.getJackalAddress === 'function') {
+                userAddress = await handler.jackalClient.getJackalAddress();
+            } else if (handler.client && handler.client.details && handler.client.details.address) {
+                userAddress = handler.client.details.address;
+            }
+
+            if (userAddress) {
+                console.debug('downloadFile: attempting downloadByUlid', ulidStr, 'user:', userAddress);
+                return await handler.downloadByUlid({
+                    ulid: ulidStr,
+                    trackers: tracker,
+                    userAddress: userAddress
+                });
+            } else {
+                console.warn('downloadFile: cannot use downloadByUlid without userAddress');
+            }
+        } catch (e) {
+            console.warn('downloadFile: downloadByUlid failed, falling back to path download', e);
+        }
+    }
+    
+    // Use the full path and pass the tracker
+    return await handler.downloadFile(cleanPath, tracker);
 }
 
 // ------------------ Write/Action Helpers ------------------
@@ -152,9 +202,12 @@ export async function createNewFolder(handler, parentPath, folderName) {
 }
 
 export async function uploadFile(handler, file, parentPath) {
+    // Ensure parentPath is clean (no 's/' prefix)
+    const cleanParentPath = String(parentPath || '').replace(/^s\//, '');
+
     const tryQueue = async () => {
         if (typeof handler.queueFile === 'function') {
-            try { await handler.queueFile(file, parentPath); return true; } catch (e) {}
+            try { await handler.queueFile(file, cleanParentPath); return true; } catch (e) {}
             try { await handler.queueFile(file); return true; } catch (e) {}
         }
 
@@ -173,7 +226,7 @@ export async function uploadFile(handler, file, parentPath) {
         const altQueues = ['queue', 'addToQueue', 'enqueueFile'];
         for (const q of altQueues) {
             if (typeof handler[q] === 'function') {
-                try { await handler[q](file, parentPath); return true; } catch (e) {}
+                try { await handler[q](file, cleanParentPath); return true; } catch (e) {}
                 try { await handler[q](file); return true; } catch (e) {}
             }
         }
