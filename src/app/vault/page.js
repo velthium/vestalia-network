@@ -3,9 +3,18 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { showErrorAlert } from "@/utils/alerts/error";
-import { loadDirectoryContents, createNewFolder, downloadFile, uploadFile, deleteItem, renameItem, safeUpgradeSigner } from "@/lib/jackalActions";
+import { loadDirectoryContents, createNewFolder, downloadFile, uploadFile, deleteItem, renameItem, safeUpgradeSigner, getStorageStatus } from "@/lib/jackalActions";
 
 const JACKAL_ROOT = ["s", "Home"];
+
+const formatBytes = (bytes, decimals = 2) => {
+  if (!+bytes) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+};
 
 export default function Vault() {
   const [storageHandler, setStorageHandler] = useState(null);
@@ -24,6 +33,7 @@ export default function Vault() {
   const router = useRouter();
   const [blocked, setBlocked] = useState(false);
   const [selectedItemInfo, setSelectedItemInfo] = useState(null);
+  const [storageInfo, setStorageInfo] = useState(null);
 
   const logIfNotUserRejected = (err, prefix = '') => { const msg = err?.message || String(err || ''); if (/request rejected|user rejected/i.test(msg)) console.debug(prefix, 'user rejected signer request:', msg); else console.error(prefix, err); };
 
@@ -57,6 +67,18 @@ export default function Vault() {
         }
         
         setStorageHandler(storage);
+        
+        // Fetch storage status
+        try {
+          const status = await getStorageStatus(storage);
+          if (status) {
+            console.debug('Storage status:', status);
+            setStorageInfo(status);
+          }
+        } catch (e) {
+          console.warn('Failed to get storage status:', e);
+        }
+
         await refreshDirectory(pathStackIds.join('/'), storage);
         setStatusMessage("");
       } catch (err) {
@@ -323,6 +345,40 @@ export default function Vault() {
   return (
     <div className="container py-5" onDragOver={handleDragOver} onDrop={handleDropOnRoot}>
       <h1>☁️ My Jackal Vault</h1>
+      
+      {storageInfo && storageInfo.info && (
+        <div className="card mb-4 shadow-sm">
+          <div className="card-body">
+            <h5 className="card-title mb-3">Storage Usage</h5>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <span className="fw-bold text-dark">{formatBytes(storageInfo.info.spaceUsed || 0)}</span>
+                <span className="text-muted mx-2">of</span>
+                <span className="text-muted">{formatBytes(storageInfo.info.spaceAvailable || 0)}</span>
+              </div>
+              <span className="badge bg-light text-dark border rounded-pill">
+                {((storageInfo.info.spaceUsed || 0) / (storageInfo.info.spaceAvailable || 1) * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div className="progress" style={{ height: '6px', borderRadius: '10px', backgroundColor: '#f0f0f0' }}>
+              <div 
+                className="progress-bar" 
+                role="progressbar" 
+                style={{ 
+                  width: `${Math.min(((storageInfo.info.spaceUsed || 0) / (storageInfo.info.spaceAvailable || 1)) * 100, 100)}%`,
+                  background: 'linear-gradient(90deg, #6610f2, #d63384)',
+                  borderRadius: '10px'
+                }}
+                aria-valuenow={(storageInfo.info.spaceUsed || 0)} 
+                aria-valuemin="0" 
+                aria-valuemax={(storageInfo.info.spaceAvailable || 1)}
+              >
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {statusMessage && <div className="alert alert-info">{statusMessage}</div>}
       
       {selectedItemInfo && (

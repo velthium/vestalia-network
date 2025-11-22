@@ -193,6 +193,16 @@ export async function downloadFile(handler, filePath, tracker, raw) {
     return await handler.downloadFile(cleanPath, tracker);
 }
 
+export async function getStorageStatus(handler) {
+    if (!handler) return null;
+    try {
+        return await handler.planStatus();
+    } catch (e) {
+        console.warn('getStorageStatus failed:', e);
+        return null;
+    }
+}
+
 // ------------------ Write/Action Helpers ------------------
 export async function createNewFolder(handler, parentPath, folderName) {
     if (!handler || !folderName || !parentPath) {

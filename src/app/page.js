@@ -2,6 +2,7 @@
 import PageTitle from '@/components/PageTitle';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function Home() {
   const [stats, setStats] = useState([]);
@@ -38,7 +39,7 @@ export default function Home() {
         {loading ? <p>Loading statistics...</p> : stats.map((stat, i) => <div key={i} className="m-2"><p className="fw-bold">{stat.label}</p><p className="fs-5">{stat.value}</p></div>)}
       </div>
       <p className="my-5">This website offers a decentralized storage service where you can securely store your data without relying on any other platform.</p>
-      <button className="btn btn-primary rounded-pill px-4" style={{ background: '#7B61FF', borderColor: '#7B61FF' }}>Get Started</button>
+      <Link href="/login" className="btn btn-primary rounded-pill px-4" style={{ background: '#7B61FF', borderColor: '#7B61FF' }}>Get Started</Link>
       <div className="container my-5"><div className="row g-4">
         {[{src: "/images/ProtectedLogo.png", alt: "Jackal Network logo", title: "End-to-end encryption"}, {src: "/images/UltrafastLogo.png", alt: "Cloud storage icon", title: "Ultra fast sync"}].map((item, i) => (
           <div key={i} className="col-12 col-md-6"><div className="p-4 bg-white shadow-sm rounded-4 text-center"><Image src={item.src} alt={item.alt} width={200} height={200} className="img-fluid homepage-pictures" loading="lazy" /><h5 className="mb-3">{item.title}</h5></div></div>

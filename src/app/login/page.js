@@ -1,7 +1,7 @@
 // src/app/login/page.js
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
@@ -13,9 +13,15 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState("");
 
-  const { connectWallet, client } = useWallet();
+  const { connectWallet, client, connected } = useWallet();
   const { setUserName } = useUser();
   const router = useRouter();
+
+  useEffect(() => {
+    if (connected) {
+      router.push("/vault");
+    }
+  }, [connected, router]);
 
   const handleLoginClick = async () => {
     try {
