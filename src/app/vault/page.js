@@ -157,8 +157,7 @@ export default function Vault() {
     if (!storageHandler) return;
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
-    const id = deriveId(item);
-    const targetPath = (pathStackIds.join('/') + '/' + id).replace(/(^\/|\/\/$)/g, '');
+    const targetPath = (pathStack.join('/') + '/' + item.name).replace(/(^\/|\/\/$)/g, '');
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -192,7 +191,7 @@ export default function Vault() {
     if (!storageHandler) return;
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
-    const parentPath = pathStackIds.join('/');
+    const parentPath = pathStack.join('/');
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -218,10 +217,10 @@ export default function Vault() {
       setUploading(true);
       setUploadProgress(0);
       setStatusMessage(`Uploading ${file.name}...`);
-      const parentPath = pathStackIds.join("/");
+      const parentPath = pathStack.join("/");
       await uploadFile(storageHandler, file, parentPath);
       setUploadProgress(100);
-      await refreshDirectory(parentPath);
+      await refreshDirectory(pathStackIds.join("/"));
       setStatusMessage("Upload complete!");
       setTimeout(() => setUploadProgress(0), 2000);
     } catch (err) {

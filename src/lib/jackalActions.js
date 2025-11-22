@@ -215,6 +215,14 @@ export async function uploadFile(handler, file, parentPath) {
     // Ensure parentPath is clean (no 's/' prefix)
     const cleanParentPath = String(parentPath || '').replace(/^s\//, '');
 
+    if (typeof handler.queueFile !== 'function' && typeof handler.loadDirectory === 'function') {
+        try {
+            await handler.loadDirectory({ path: cleanParentPath });
+        } catch (e) {
+            console.warn('uploadFile: failed to switch directory to', cleanParentPath, e);
+        }
+    }
+
     const tryQueue = async () => {
         if (typeof handler.queueFile === 'function') {
             try { await handler.queueFile(file, cleanParentPath); return true; } catch (e) {}
