@@ -6,10 +6,11 @@ import { showErrorAlert } from "@/utils/alerts/error";
 import { loadDirectoryContents, createNewFolder, downloadFile, uploadFile, deleteItem, renameItem, safeUpgradeSigner, getStorageStatus } from "@/lib/jackalActions";
 
 const JACKAL_ROOT = ["s", "Home"];
+const REDUNDANCY_FACTOR = 3; // Jackal protocol uses 3x redundancy
 
 const formatBytes = (bytes, decimals = 2) => {
   if (!+bytes) return '0 Bytes';
-  const k = 1024;
+  const k = 1000; // Use 1000 instead of 1024 to match commercial storage units (1GB = 10^9 bytes)
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -352,9 +353,9 @@ export default function Vault() {
             <h5 className="card-title mb-3">Storage Usage</h5>
             <div className="d-flex justify-content-between align-items-center mb-2">
               <div>
-                <span className="fw-bold text-dark">{formatBytes(storageInfo.info.spaceUsed || 0)}</span>
+                <span className="fw-bold text-dark">{formatBytes((storageInfo.info.spaceUsed || 0) / REDUNDANCY_FACTOR)}</span>
                 <span className="text-muted mx-2">of</span>
-                <span className="text-muted">{formatBytes(storageInfo.info.spaceAvailable || 0)}</span>
+                <span className="text-muted">{formatBytes((storageInfo.info.spaceAvailable || 0) / REDUNDANCY_FACTOR)}</span>
               </div>
               <span className="badge bg-light text-dark border rounded-pill">
                 {((storageInfo.info.spaceUsed || 0) / (storageInfo.info.spaceAvailable || 1) * 100).toFixed(1)}%
