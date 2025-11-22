@@ -3,6 +3,7 @@ import PageTitle from '@/components/PageTitle';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { formatBytes } from '@/utils/formatBytes';
 
 export default function Home() {
   const [stats, setStats] = useState([]);
@@ -19,8 +20,8 @@ export default function Home() {
         ]);
         setStats([
           { label: "Total Users", value: getLastValue(users) },
-          { label: "Total Files", value: getLastValue(files) },
-          { label: "Available space", value: getLastValue(space) },
+          { label: "Total Files", value: Number(getLastValue(files)).toLocaleString('fr-FR') },
+          { label: "Available space", value: formatBytes(getLastValue(space)) },
         ]);
       } catch (error) {
         console.error('Erreur lors du fetch :', error);
