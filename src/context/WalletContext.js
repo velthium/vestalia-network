@@ -15,10 +15,21 @@ export const WalletProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const connectWallet = async (silent = false) => {
+  const connectWallet = async (walletType = "keplr", silent = false) => {
     try {
+      if (typeof window !== 'undefined') {
+        if (walletType === 'leap' && !window.leap) {
+          if (!silent) showErrorAlert("Leap Wallet not found", "Please install the Leap Wallet extension to continue.<br><br><a href='https://www.leapwallet.io/download' target='_blank' class='btn btn-sm btn-primary'>Download Leap Wallet</a>", true);
+          return false;
+        }
+        if (walletType === 'keplr' && !window.keplr) {
+          if (!silent) showErrorAlert("Keplr Wallet not found", "Please install the Keplr Wallet extension to continue.<br><br><a href='https://www.keplr.app/download' target='_blank' class='btn btn-sm btn-primary'>Download Keplr Wallet</a>", true);
+          return false;
+        }
+      }
+
       setLoading(true);
-      const { client, storage } = await initializeJackal();
+      const { client, storage } = await initializeJackal(walletType);
       setClient(client);
       setStorage(storage);
       setAddress(client.details?.address);
@@ -27,6 +38,7 @@ export const WalletProvider = ({ children }) => {
       try {
         if (typeof window !== 'undefined') {
           localStorage.setItem('vestalia:wallet_connected', 'true');
+          localStorage.setItem('vestalia:wallet_type', walletType);
           localStorage.setItem('vestalia:wallet_address', client.details?.address || '');
         }
       } catch (e) {}
@@ -42,6 +54,13 @@ export const WalletProvider = ({ children }) => {
         }
         return false;
       }
+      
+      if (msg.includes("No wallet exists") || msg.includes("Wallet not found")) {
+        if (!silent) {
+          showErrorAlert("Wallet Connection Failed", "We detected the wallet extension, but could not connect to it. Please ensure your wallet is unlocked and try again.", true);
+        }
+        return false;
+      }
       return false;
     } finally {
       setLoading(false);
@@ -53,7 +72,7 @@ export const WalletProvider = ({ children }) => {
     setStorage(null);
     setAddress(null);
     setConnected(false);
-    try { if (typeof window !== 'undefined') { localStorage.removeItem('vestalia:wallet_connected'); localStorage.removeItem('vestalia:wallet_address'); } } catch (e) {}
+    try { if (typeof window !== 'undefined') { localStorage.removeItem('vestalia:wallet_connected'); localStorage.removeItem('vestalia:wallet_address'); localStorage.removeItem('vestalia:wallet_type'); } } catch (e) {}
   };
 
   useEffect(() => {
@@ -62,13 +81,14 @@ export const WalletProvider = ({ children }) => {
       const was = localStorage.getItem('vestalia:wallet_connected');
       if (was === 'true') {
         const savedAddr = localStorage.getItem('vestalia:wallet_address');
+        const savedType = localStorage.getItem('vestalia:wallet_type') || "keplr";
         if (savedAddr) setAddress(savedAddr);
         setConnected(true);
         setReady(false);
         (async () => {
           const maxAttempts = 3;
           for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            try { if (await connectWallet(true)) return; } catch (e) {}
+            try { if (await connectWallet(savedType, true)) return; } catch (e) {}
             await new Promise(res => setTimeout(res, 250 * Math.pow(2, attempt - 1)));
           }
           setReady(false);

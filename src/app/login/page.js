@@ -23,12 +23,12 @@ export default function Login() {
     }
   }, [connected, router]);
 
-  const handleLoginClick = async () => {
+  const handleLoginClick = async (walletType) => {
     try {
       setIsLoading(true);
-      setStatus("Connecting...");
+      setStatus(`Connecting to ${walletType === 'leap' ? 'Leap' : 'Keplr'}...`);
 
-      const success = await connectWallet();
+      const success = await connectWallet(walletType);
       if (!success) {
         setStatus("Connection failed!");
         return;
@@ -53,10 +53,17 @@ export default function Login() {
   return (
     <div className="container text-center">
       <PageTitle title="Connect your Wallet" />
-      <button className="btn mt-4 bg-purple d-flex align-items-center justify-content-center gap-3 mx-auto px-4 py-2" onClick={handleLoginClick} disabled={isLoading} aria-label="Connect with Keplr wallet">
-        {isLoading ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Keplr.svg" alt="Keplr logo" width={40} height={40} className="rounded" loading="eager" />}
-        <span className="fw-semibold fs-5 my-auto">{isLoading ? "Connecting..." : "Keplr Wallet"}</span>
-      </button>
+      <div className="d-flex flex-column gap-3 align-items-center mt-4">
+        <button className="btn bg-purple d-flex align-items-center justify-content-center gap-3 px-4 py-2" style={{ minWidth: '250px' }} onClick={() => handleLoginClick('keplr')} disabled={isLoading} aria-label="Connect with Keplr wallet">
+          {isLoading ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Keplr.svg" alt="Keplr logo" width={40} height={40} className="rounded" loading="eager" />}
+          <span className="fw-semibold fs-5 my-auto">{isLoading ? "Connecting..." : "Keplr Wallet"}</span>
+        </button>
+
+        <button className="btn bg-purple d-flex align-items-center justify-content-center gap-3 px-4 py-2" style={{ minWidth: '250px' }} onClick={() => handleLoginClick('leap')} disabled={isLoading} aria-label="Connect with Leap wallet">
+          {isLoading ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Leap.png" alt="Leap logo" width={40} height={40} className="rounded" loading="eager" />}
+          <span className="fw-semibold fs-5 my-auto">{isLoading ? "Connecting..." : "Leap Wallet"}</span>
+        </button>
+      </div>
       {status && <p className={`mt-3 ${status.toLowerCase().match(/success|connected|connecting/) ? 'text-success' : 'text-danger'}`}>{status}</p>}
     </div>
   );

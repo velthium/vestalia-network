@@ -28,7 +28,7 @@ export default function Home() {
     try {
       const { storage } = await initializeJackal();
       const storageSize = unit === 'GB' ? size : size * 1000;
-      await storage.purchaseStoragePlan({ gb: storageSize, days: years * 365 });
+      await storage.purchaseStoragePlan({ gb: storageSize, days: years * 365, referrer: 'velthium' });
       showSuccessAlert('Storage plan purchased', `${size} ${unit} (${storageSize} bytes) for ${years} years.`);
     } catch (err) {
       console.debug(err);
