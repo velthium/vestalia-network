@@ -44,6 +44,58 @@ const formatBytes = (bytes, decimals = 2) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
 
+const StorageWidget = ({ used, total }) => {
+  const percentage = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+  const available = Math.max(0, total - used);
+  
+  const radius = 80;
+  const stroke = 10;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="card mb-4 border-0 shadow-sm" style={{ backgroundColor: '#EEF2FF', borderRadius: '24px', maxWidth: '320px', margin: '0 auto' }}>
+      <div className="card-body d-flex flex-column align-items-center justify-content-center py-3">
+        <div className="position-relative d-flex align-items-center justify-content-center">
+          <svg
+            height={radius * 2}
+            width={radius * 2}
+            style={{ transform: 'rotate(-90deg)' }}
+          >
+            <circle
+              stroke="white"
+              strokeWidth={stroke}
+              fill="transparent"
+              r={normalizedRadius}
+              cx={radius}
+              cy={radius}
+            />
+            <circle
+              stroke="#6366f1" 
+              strokeWidth={stroke}
+              strokeDasharray={circumference + ' ' + circumference}
+              style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+              strokeLinecap="round"
+              fill="transparent"
+              r={normalizedRadius}
+              cx={radius}
+              cy={radius}
+            />
+          </svg>
+          <div className="position-absolute text-center">
+            <div className="text-secondary mb-1" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Available</div>
+            <div className="text-dark fw-bold" style={{ fontSize: '1.4rem' }}>{formatBytes(available)}</div>
+          </div>
+        </div>
+        <div className="mt-2 text-secondary" style={{ fontSize: '0.9rem' }}>
+          <span className="fw-bold text-dark">{percentage.toFixed(1)}%</span> used
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const FileThumbnail = ({ item, storageHandler, fullPath }) => {
   const [url, setUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -412,36 +464,10 @@ export default function Vault() {
       <h1>☁️ My Jackal Vault</h1>
       
       {storageInfo && storageInfo.info && (
-        <div className="card mb-4 shadow-sm">
-          <div className="card-body">
-            <h5 className="card-title mb-3">Storage Usage</h5>
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <div>
-                <span className="fw-bold text-dark">{formatBytes((storageInfo.info.spaceUsed || 0) / REDUNDANCY_FACTOR)}</span>
-                <span className="text-muted mx-2">of</span>
-                <span className="text-muted">{formatBytes((storageInfo.info.spaceAvailable || 0) / REDUNDANCY_FACTOR)}</span>
-              </div>
-              <span className="badge bg-light text-dark border rounded-pill">
-                {((storageInfo.info.spaceUsed || 0) / (storageInfo.info.spaceAvailable || 1) * 100).toFixed(1)}%
-              </span>
-            </div>
-            <div className="progress" style={{ height: '6px', borderRadius: '10px', backgroundColor: '#f0f0f0' }}>
-              <div 
-                className="progress-bar" 
-                role="progressbar" 
-                style={{ 
-                  width: `${Math.min(((storageInfo.info.spaceUsed || 0) / (storageInfo.info.spaceAvailable || 1)) * 100, 100)}%`,
-                  background: 'linear-gradient(90deg, #6610f2, #d63384)',
-                  borderRadius: '10px'
-                }}
-                aria-valuenow={(storageInfo.info.spaceUsed || 0)} 
-                aria-valuemin="0" 
-                aria-valuemax={(storageInfo.info.spaceAvailable || 1)}
-              >
-              </div>
-            </div>
-          </div>
-        </div>
+        <StorageWidget 
+          used={(storageInfo.info.spaceUsed || 0) / REDUNDANCY_FACTOR} 
+          total={(storageInfo.info.spaceAvailable || 0) / REDUNDANCY_FACTOR} 
+        />
       )}
 
       {statusMessage && <div className="alert alert-info">{statusMessage}</div>}
@@ -490,7 +516,9 @@ export default function Vault() {
         </div>
       )}
       <div className="d-flex gap-2 my-3">
-        <button className="btn btn-secondary" onClick={handleGoBack} disabled={pathStackIds.length <= JACKAL_ROOT.length || loading}>⬅ Back</button>
+        {pathStackIds.length > JACKAL_ROOT.length && (
+          <button className="btn btn-secondary" onClick={handleGoBack} disabled={loading}>⬅ Back</button>
+        )}
         <button className="btn btn-primary" onClick={handleCreateFolder} disabled={loading}>+ New Folder</button>
         <div className="btn btn-success position-relative overflow-hidden">{uploading ? "Uploading..." : "+ Upload File"}<input type="file" className="position-absolute top-0 start-0 opacity-0 w-100 h-100" onChange={handleFileUpload} disabled={uploading || loading} /></div>
       </div>
