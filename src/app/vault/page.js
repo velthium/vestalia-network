@@ -8,6 +8,33 @@ import { loadDirectoryContents, createNewFolder, downloadFile, uploadFile, delet
 const JACKAL_ROOT = ["s", "Home"];
 const REDUNDANCY_FACTOR = 3; // Jackal protocol uses 3x redundancy
 
+// Simple queue to limit concurrent downloads
+const thumbnailQueue = {
+  queue: [],
+  pending: 0,
+  max: 3, // Limit to 3 concurrent downloads
+  add: function(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject });
+      this.process();
+    });
+  },
+  process: async function() {
+    if (this.pending >= this.max || this.queue.length === 0) return;
+    this.pending++;
+    const { fn, resolve, reject } = this.queue.shift();
+    try {
+      const res = await fn();
+      resolve(res);
+    } catch (e) {
+      reject(e);
+    } finally {
+      this.pending--;
+      this.process();
+    }
+  }
+};
+
 const formatBytes = (bytes, decimals = 2) => {
   if (!+bytes) return '0 Bytes';
   const k = 1000; // Use 1000 instead of 1024 to match commercial storage units (1GB = 10^9 bytes)
@@ -15,6 +42,44 @@ const formatBytes = (bytes, decimals = 2) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+};
+
+const FileThumbnail = ({ item, storageHandler, fullPath }) => {
+  const [url, setUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const load = async () => {
+    if (!storageHandler || !item || !fullPath) return;
+    if (!item.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) return;
+    
+    setLoading(true);
+    setError(false);
+    try {
+      const tracker = { progress: 0, chunks: [] };
+      // Use queue to prevent network congestion
+      const blob = await thumbnailQueue.add(() => downloadFile(storageHandler, fullPath, tracker, item.raw));
+      const u = URL.createObjectURL(blob);
+      setUrl(u);
+    } catch (e) {
+      console.error("Thumbnail load error:", e);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    return () => { if(url) URL.revokeObjectURL(url); };
+  }, [item, storageHandler, fullPath]);
+
+  if (loading) return <span className="spinner-border spinner-border-sm text-secondary" role="status" style={{width: '24px', height: '24px'}}></span>;
+  if (error) {
+    return <span title="Error loading thumbnail. The file might be unavailable." onClick={(e) => { e.stopPropagation(); load(); }} style={{cursor: 'pointer'}}>⚠️</span>;
+  }
+  if (url) return <img src={url} alt="thumbnail" style={{width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px'}} />;
+  return <span>📄</span>;
 };
 
 export default function Vault() {
@@ -434,10 +499,14 @@ export default function Vault() {
         <ul className="list-group mt-4">
           {items.length === 0 ? <li className="list-group-item text-muted">This folder is empty.</li> : items.map((item, i) => {
             const isFolder = item.isDir || item.type === "folder";
+            const parentPath = pathStackIds.join('/');
+            const fullPath = (parentPath + '/' + (item.raw?.fileMeta?.name || item.name)).replace(/(^\/|\/\/$)/g, '');
+
             return (
               <li key={i} className={`list-group-item d-flex justify-content-between align-items-center ${isFolder && dragOverId === (item?.raw?.name || item.name) ? 'bg-light' : ''}`} data-is-folder={isFolder ? "true" : "false"} onDragOver={isFolder ? handleDragOver : undefined} onDragEnter={isFolder ? () => handleDragEnterFolder(item) : undefined} onDragLeave={isFolder ? () => handleDragLeaveFolder(item) : undefined} onDrop={isFolder ? (e) => handleDropOnFolder(item, e) : undefined}>
                 <div style={{ cursor: isFolder ? "pointer" : "default" }} onClick={() => isFolder && handleOpenFolder(item)} className="d-flex align-items-center gap-2">
-                  <span>{isFolder ? "📁" : "📄"}</span><strong>{item.name}</strong>
+                  {isFolder ? <span>📁</span> : <FileThumbnail item={item} storageHandler={storageHandler} fullPath={fullPath} />}
+                  <strong>{item.name}</strong>
                   {!isFolder && <small className="text-muted ms-2">{(item.size / (1024 * 1024)).toFixed(2)} MB</small>}
                 </div>
                 <div className="d-flex gap-2">

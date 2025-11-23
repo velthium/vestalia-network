@@ -1,3 +1,5 @@
+import { NullMetaHandler } from '@jackallabs/jackal.js';
+
 /**
  * Jackal StorageHandler helper wrappers
  * - Normalizes reads across SDK shapes
@@ -21,6 +23,19 @@ async function withSignerLock(fn) {
     } finally {
         _signerLock = false;
     }
+}
+
+async function genAesBundle() {
+    const key = new Uint8Array(32);
+    const iv = new Uint8Array(16);
+    if (typeof window !== 'undefined' && window.crypto) {
+        window.crypto.getRandomValues(key);
+        window.crypto.getRandomValues(iv);
+    } else {
+        for(let i=0; i<32; i++) key[i] = Math.floor(Math.random() * 256);
+        for(let i=0; i<16; i++) iv[i] = Math.floor(Math.random() * 256);
+    }
+    return { key, iv };
 }
 
 // Safe upgrade helper: call handler.upgradeSigner() but swallow user-rejected errors
@@ -338,324 +353,148 @@ export async function uploadFile(handler, file, parentPath) {
 export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
     if (!handler || !fullPath) throw new Error('Missing handler or path for delete');
 
-    // For files, construct IFileDeletePackage { creator, merkle, start } from fileMeta
+    const cleanPath = String(fullPath || '').replace(/^s\//, '');
+    const parts = cleanPath.split('/');
+    const fileName = parts.pop(); // Remove file name, remaining is parent
+    const parentPath = parts.join('/');
+
+    console.debug('deleteItem: target', { fullPath, cleanPath, parentPath, fileName });
+
+    // 1. Ensure we are in the correct directory
+    try {
+        const targetDir = parentPath || 'Home';
+        console.debug('deleteItem: switching to directory', targetDir);
+        if (typeof handler.loadDirectory === 'function') {
+            await handler.loadDirectory({ path: targetDir });
+        }
+    } catch (e) {
+        console.warn('deleteItem: loadDirectory failed', e);
+    }
+
+    // 2. Verify file existence in current view
+    try {
+        if (typeof handler.listChildFiles === 'function') {
+            const files = handler.listChildFiles();
+            console.debug('deleteItem: files in current dir:', files);
+            if (!files.includes(fileName)) {
+                console.warn(`deleteItem: file "${fileName}" not found in current directory listing. It might be a ghost file.`);
+            }
+        }
+    } catch (e) {
+        console.warn('deleteItem: listChildFiles failed', e);
+    }
+
+    // 3. Attempt deletion using deleteTargets (standard method)
+    if (typeof handler.deleteTargets === 'function') {
+        try {
+            console.debug(`deleteItem: calling deleteTargets for "${fileName}"`);
+            await withSignerLock(() => handler.deleteTargets({ targets: [fileName] }));
+            return true;
+        } catch (err) {
+            const msg = err?.message || String(err);
+            console.warn('deleteItem: deleteTargets failed:', msg);
+            
+            if (!msg.includes('invalid request') && !msg.includes('code 18')) {
+                throw err;
+            }
+            console.debug('deleteItem: deleteTargets returned empty msg, attempting fallbacks...');
+        }
+    }
+
+    // 4. Fallback: Try using raw metadata (IFileDeletePackage) if available
+    // This is useful if the file is not in the current directory listing but we have its metadata
     if (!isDir && raw && raw.fileMeta) {
         const fileMeta = raw.fileMeta;
-        
-        // eslint-disable-next-line no-console
-        console.debug('deleteItem: raw.fileMeta =', fileMeta);
-        
-        // Get creator address (owner of the file)
-        let creator = null;
-        try {
-            if (handler && handler.jackalClient) {
-                if (typeof handler.jackalClient.getJackalAddress === 'function') {
-                    creator = await handler.jackalClient.getJackalAddress();
-                } else if (handler.jackalClient.details && handler.jackalClient.details.address) {
-                    creator = handler.jackalClient.details.address;
-                }
-            }
-            if (!creator && handler.client && handler.client.details && handler.client.details.address) {
-                creator = handler.client.details.address;
-            }
-        } catch (e) {
-            // eslint-disable-next-line no-console
-            console.debug('deleteItem: failed to get creator address:', e);
-        }
-
-        // Extract merkle root and start index from fileMeta
         const merkle = fileMeta.merkleRoot || fileMeta.merkle;
         const start = fileMeta.start !== undefined ? fileMeta.start : 0;
-
-        // eslint-disable-next-line no-console
-        console.debug('deleteItem: extracted values ->', { creator, merkle, start });
+        
+        // We need the creator address
+        let creator = null;
+        try {
+            if (handler.jackalClient && typeof handler.jackalClient.getJackalAddress === 'function') {
+                creator = await handler.jackalClient.getJackalAddress();
+            } else if (handler.client && handler.client.details) {
+                creator = handler.client.details.address;
+            }
+        } catch (e) {}
 
         if (creator && merkle) {
-            // Try queueDelete + processQueue first (most reliable for files)
-            if (typeof handler.queueDelete === 'function') {
-                try {
-                    // eslint-disable-next-line no-console
-                    console.debug('deleteItem: trying queueDelete with fileMeta');
-                    await withSignerLock(() => handler.queueDelete(fileMeta));
-                    
-                    if (typeof handler.processQueue === 'function') {
-                        await withSignerLock(async () => {
-                            try { await safeUpgradeSigner(handler); } catch (e) {}
-                            const res = await handler.processQueue();
-                            // eslint-disable-next-line no-console
-                            console.debug('deleteItem: processQueue result:', res);
-                        });
-                    }
-                    return true;
-                } catch (errQueue) {
-                    // eslint-disable-next-line no-console
-                    console.debug('deleteItem: queueDelete(fileMeta) + processQueue failed:', errQueue && errQueue.message ? errQueue.message : errQueue);
-                }
-            }
-
-            // Construct IFileDeletePackage
-            const deletePackage = {
-                creator: creator,
-                merkle: merkle,
-                start: start
-            };
-
-            // Try deleteFile with the proper package
+            const deletePackage = { creator, merkle, start };
+            console.debug('deleteItem: attempting deleteFile with package', deletePackage);
+            
             if (typeof handler.deleteFile === 'function') {
                 try {
-                    // eslint-disable-next-line no-console
-                    console.debug('deleteItem: trying deleteFile with IFileDeletePackage:', deletePackage);
                     await withSignerLock(() => handler.deleteFile(deletePackage));
                     return true;
-                } catch (errPkg) {
-                    // eslint-disable-next-line no-console
-                    console.debug('deleteItem: deleteFile(IFileDeletePackage) failed:', errPkg && errPkg.message ? errPkg.message : errPkg);
+                } catch (e) {
+                    console.warn('deleteItem: deleteFile fallback failed', e);
                 }
             }
-
-            // Try deleteTargets with the package
-            if (typeof handler.deleteTargets === 'function') {
-                try {
-                    // eslint-disable-next-line no-console
-                    console.debug('deleteItem: trying deleteTargets with IFileDeletePackage:', { hashpath: deletePackage });
-                    await withSignerLock(() => handler.deleteTargets({ hashpath: deletePackage }));
-                    return true;
-                } catch (errTargets) {
-                    // eslint-disable-next-line no-console
-                    console.debug('deleteItem: deleteTargets(hashpath) failed:', errTargets && errTargets.message ? errTargets.message : errTargets);
-                }
-            }
-        } else {
-            // eslint-disable-next-line no-console
-            console.debug('deleteItem: missing creator or merkle for IFileDeletePackage construction', { creator, merkle, fileMeta });
         }
     }
 
-    const fileMethods = [ 'deleteFile','deleteFiles','removeFile','removeFiles','queueDelete','delete' ];
-    const folderMethods = [ 'deleteFolder','deleteFolders','removeFolder','removeFolders','rmdir','delete' ];
-    const tryList = isDir ? folderMethods : fileMethods;
-
-    for (const m of tryList) {
-        if (typeof handler[m] === 'function') {
+    // 5. Fallback: Try deleting by ULID if available
+    if (raw && (raw.ulid || raw.fileMeta?.ulid)) {
+        const ulid = raw.ulid || raw.fileMeta?.ulid;
+        console.debug('deleteItem: trying deletion by ULID', ulid);
+        
+        if (typeof handler.queueDelete === 'function') {
             try {
-                if (m.endsWith('s')) {
-                    await withSignerLock(() => handler[m]([fullPath]));
-                } else if (m === 'queueDelete') {
-                    await withSignerLock(() => handler.queueDelete(fullPath));
-                    if (typeof handler.processQueue === 'function') await withSignerLock(() => handler.processQueue());
-                } else {
-                    await withSignerLock(() => handler[m](fullPath));
+                await withSignerLock(() => handler.queueDelete(ulid));
+                if (typeof handler.processQueue === 'function') {
+                    await withSignerLock(() => handler.processQueue());
                 }
                 return true;
-            } catch (err) {
-                // eslint-disable-next-line no-console
-                console.debug(`deleteItem: method ${m} failed:`, err && err.message ? err.message : err);
-            }
-        }
-    }
-
-    if (typeof handler.deleteTargets === 'function') {
-        const candidates = [];
-        try {
-            const active = (typeof handler.readActivePath === 'function') ? handler.readActivePath() : (handler.activePath || '');
-            const normalized = String(fullPath || '').replace(/^\/?/, '');
-            const strippedS = normalized.replace(/^s\/?/, '');
-            const parts = normalized.split('/').filter(Boolean);
-            const basename = parts.length ? parts[parts.length - 1] : normalized;
-
-            if (active && normalized.startsWith(active.replace(/^\/?/, ''))) {
-                const rel = normalized.slice(active.replace(/^\/?/, '').length).replace(/^\/?/, '');
-                if (rel) candidates.push(rel);
-            }
-
-            candidates.push(basename);
-            candidates.push(strippedS);
-            candidates.push(normalized);
-        } catch (eCandidates) {
-            const parts = String(fullPath || '').split('/').filter(Boolean);
-            candidates.push(parts.length ? parts[parts.length - 1] : fullPath);
-        }
-
-        const uniq = Array.from(new Set(candidates.filter(Boolean)));
-
-        const tryDeleteTargets = async (payload) => {
-            try {
-                // Ensure signer upgrades/locks happen inside the signer mutex to avoid
-                // multiple concurrent Keplr approval prompts. Some StorageHandler
-                // implementations will prompt on deleteTargets even for payload validation.
-                return await withSignerLock(async () => {
-                    try {
-                        await handler.deleteTargets(payload);
-                        return true;
-                    } catch (eInner) {
-                        // eslint-disable-next-line no-console
-                        console.debug('deleteItem: deleteTargets attempt failed for payload', payload, eInner && eInner.message ? eInner.message : eInner);
-                        return false;
-                    }
-                });
             } catch (e) {
-                // eslint-disable-next-line no-console
-                console.debug('deleteItem: deleteTargets attempt outer failure', payload, e && e.message ? e.message : e);
-                return false;
+                console.debug('deleteItem: queueDelete(ulid) failed', e);
             }
-        };
-
-        // Try to perform a safe signer upgrade once before iterating many delete attempts.
-        try {
-            if (typeof handler.upgradeSigner === 'function') {
-                // safeUpgradeSigner will swallow user-rejected prompts
-                await safeUpgradeSigner(handler);
-            }
-        } catch (eUp) {
-            // eslint-disable-next-line no-console
-            console.debug('deleteItem: safeUpgradeSigner failed (ignored):', eUp && eUp.message ? eUp.message : eUp);
         }
+    }
 
-        for (const cand of uniq) {
-            if (await tryDeleteTargets({ targets: [cand] })) return true;
-            if (await tryDeleteTargets([cand])) return true;
-            if (await tryDeleteTargets(cand)) return true;
-            if (await tryDeleteTargets({ targets: [{ name: cand }] })) return true;
-            if (await tryDeleteTargets({ targets: [{ target: cand }] })) return true;
-
-            if (raw) {
-                if (await tryDeleteTargets({ targets: [raw] })) return true;
-                if (raw.fileMeta && await tryDeleteTargets({ targets: [{ file: raw.fileMeta }] })) return true;
-                if (raw.folder && await tryDeleteTargets({ targets: [{ folder: raw.folder }] })) return true;
-
-                const ref = (raw && (raw.ref || raw.fileMeta?.ref || raw.fileMeta?.reference || raw.folder?.ref)) || undefined;
-                const location = (typeof handler.readCurrentLocation === 'function') ? handler.readCurrentLocation() : (handler.activePath || undefined);
-                const fullShape = { targets: [{ name: cand, ref, location }] };
-                if (await tryDeleteTargets(fullShape)) return true;
-
-                const nested = { targets: [{ target: { name: cand, ref, location } }] };
-                if (await tryDeleteTargets(nested)) return true;
-            }
-
-            if (typeof handler.queueDelete === 'function') {
-                try {
-                    await withSignerLock(() => handler.queueDelete(cand));
-                    if (typeof handler.processQueue === 'function') {
-                        await withSignerLock(async () => {
-                            try { await safeUpgradeSigner(handler); } catch (e) {}
-                            try {
-                                const res = await handler.processQueue();
-                                if (res && res.error && String(res.errorText || '').toLowerCase().includes('event timeout')) {
-                                    const txRes = res.txResponse || res.txResult || res.tx || null;
-                                    if (txRes && (txRes.code === 0 || txRes.code === '0')) {
-                                        // eslint-disable-next-line no-console
-                                        console.debug('deleteItem: queueDelete processQueue Event Timeout but tx success, treating as success', res);
-                                    }
-                                }
-                            } catch (qProcErr) {
-                                const m = qProcErr && qProcErr.message ? qProcErr.message : String(qProcErr);
-                                if (/tx already exists in cache/i.test(m) || (qProcErr && qProcErr.data && String(qProcErr.data).toLowerCase().includes('tx already exists'))) {
-                                    // eslint-disable-next-line no-console
-                                    console.debug('deleteItem: processQueue reported tx already exists in cache, treating as success', qProcErr);
-                                } else {
-                                    throw qProcErr;
-                                }
-                            }
-                        });
+    // 6. Fallback: Force Delete FileTree Entry (Ghost File Fix)
+    // If the file is missing from storage providers, deleteTargets returns empty msgs (Code 18).
+    // We need to manually construct the FileTree deletion message.
+    try {
+        console.debug('deleteItem: attempting Force Delete FileTree Entry for', cleanPath);
+        
+        // We need access to the reader to look up ULIDs and Refs
+        // handler.reader is protected but accessible in JS
+        const reader = handler.reader;
+        if (reader && typeof reader.ulidLookup === 'function' && typeof reader.findRefIndex === 'function') {
+            
+            const ulid = reader.ulidLookup(cleanPath);
+            const ref = reader.findRefIndex(cleanPath);
+            const parentUlid = reader.ulidLookup(parentPath);
+            
+            if (ulid && parentUlid && ref !== undefined) {
+                console.debug('deleteItem: found FileTree details', { ulid, parentUlid, ref });
+                
+                const pkg = {
+                    meta: await NullMetaHandler.create({
+                        location: parentUlid,
+                        refIndex: ref,
+                        ulid: ulid
+                    }),
+                    aes: await genAesBundle()
+                };
+                
+                if (typeof handler.filetreeDeleteToMsgs === 'function') {
+                    const msgs = await handler.filetreeDeleteToMsgs(pkg);
+                    if (msgs && msgs.length > 0) {
+                        console.debug('deleteItem: broadcasting Force Delete msgs', msgs);
+                        await withSignerLock(() => handler.jackalClient.broadcastAndMonitorMsgs(msgs));
+                        return true;
                     }
-                    return true;
-                } catch (qErr) {
-                    // eslint-disable-next-line no-console
-                    console.debug('deleteItem: queueDelete attempt failed', cand, qErr && qErr.message ? qErr.message : qErr);
                 }
+            } else {
+                console.warn('deleteItem: could not find FileTree details for Force Delete', { ulid, parentUlid, ref });
             }
-
-            // eslint-disable-next-line no-console
-            console.debug('deleteItem: candidate exhausted', cand);
         }
-
-        // eslint-disable-next-line no-console
-        console.debug('deleteItem: deleteTargets attempts exhausted for', fullPath, 'candidates', uniq);
+    } catch (e) {
+        console.warn('deleteItem: Force Delete failed', e);
     }
 
-    // Additional best-effort for files: some StorageHandler versions require the full
-    // file metadata (fileMeta) or a ref/ulid instead of a plain name. Try to locate
-    // a matching fileMeta via listChildFileMetas and attempt deleteTargets/queueDelete
-    // using that metadata shape.
-    if (!isDir && typeof handler.listChildFileMetas === 'function') {
-        try {
-            const list = await handler.listChildFileMetas().catch(() => null);
-            if (Array.isArray(list) && list.length) {
-                const nameToMatch = (raw && (raw.fileMeta?.name || raw.name)) || String(fullPath).split('/').pop();
-                const match = list.find(m => (m && (m.name === nameToMatch || m.fileMeta?.name === nameToMatch)));
-                if (match) {
-                    // Try a few shapes the SDK might expect
-                    const tryMeta = async (meta) => {
-                        const attempts = [
-                            { targets: [meta] },
-                            { targets: [{ file: meta }] },
-                            { targets: [{ ref: meta.ref }] },
-                            { targets: [{ ulid: meta.ulid || (meta.ulid && meta.ulid.toString && meta.ulid.toString()) }] },
-                            [meta],
-                            meta
-                        ];
-
-                        for (const p of attempts) {
-                            try {
-                                await handler.deleteTargets(p);
-                                // eslint-disable-next-line no-console
-                                console.debug('deleteItem: deleteTargets succeeded with meta payload', p);
-                                return true;
-                            } catch (e) {
-                                // eslint-disable-next-line no-console
-                                console.debug('deleteItem: meta-shaped deleteTargets failed for payload', p, e && e.message ? e.message : e);
-                            }
-                        }
-
-                        // queueDelete with meta (some handlers accept objects)
-                        if (typeof handler.queueDelete === 'function') {
-                            try {
-                                await withSignerLock(() => handler.queueDelete(meta));
-                                if (typeof handler.processQueue === 'function') {
-                                    try { await safeUpgradeSigner(handler); } catch (s) {}
-                                    try {
-                                        const res = await handler.processQueue();
-                                        if (res && res.error && String(res.errorText || '').toLowerCase().includes('event timeout')) {
-                                            const txRes = res.txResponse || res.txResult || res.tx || null;
-                                            if (txRes && (txRes.code === 0 || txRes.code === '0')) {
-                                                // eslint-disable-next-line no-console
-                                                console.debug('deleteItem: queueDelete(meta) processQueue Event Timeout but tx success, treating as success', res);
-                                            }
-                                        }
-                                    } catch (qProcErr) {
-                                        const m = qProcErr && qProcErr.message ? qProcErr.message : String(qProcErr);
-                                        if (/tx already exists in cache/i.test(m) || (qProcErr && qProcErr.data && String(qProcErr.data).toLowerCase().includes('tx already exists'))) {
-                                            // eslint-disable-next-line no-console
-                                            console.debug('deleteItem: processQueue reported tx already exists in cache, treating as success', qProcErr);
-                                        } else {
-                                            throw qProcErr;
-                                        }
-                                    }
-                                }
-                                // eslint-disable-next-line no-console
-                                console.debug('deleteItem: queueDelete succeeded with meta', meta);
-                                return true;
-                            } catch (qErr) {
-                                // eslint-disable-next-line no-console
-                                console.debug('deleteItem: queueDelete with meta failed', qErr && qErr.message ? qErr.message : qErr);
-                            }
-                        }
-
-                        return false;
-                    };
-
-                    if (await tryMeta(match)) return true;
-                    // try nested fileMeta if present
-                    if (match.fileMeta && await tryMeta(match.fileMeta)) return true;
-                }
-            }
-        } catch (eList) {
-            // eslint-disable-next-line no-console
-            console.debug('deleteItem: listChildFileMetas attempt failed', eList && eList.message ? eList.message : eList);
-        }
-    }
-
-    throw new Error('Delete not supported by StorageHandler (tried standard and fallback methods)');
+    throw new Error(`Failed to delete "${fileName}". The file might not exist on the chain or is corrupted.`);
 }
 
 export async function renameItem(handler, oldFullPath, newFullPathOrName, isDir = false, raw = null) {
