@@ -48,48 +48,42 @@ const StorageWidget = ({ used, total }) => {
   const percentage = total > 0 ? Math.min((used / total) * 100, 100) : 0;
   const available = Math.max(0, total - used);
   
-  const radius = 80;
-  const stroke = 10;
+  const radius = 60;
+  const stroke = 8;
   const normalizedRadius = radius - stroke * 2;
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="card mb-4 border-0 shadow-sm" style={{ backgroundColor: '#EEF2FF', borderRadius: '24px', maxWidth: '320px', margin: '0 auto' }}>
-      <div className="card-body d-flex flex-column align-items-center justify-content-center py-3">
-        <div className="position-relative d-flex align-items-center justify-content-center">
-          <svg
-            height={radius * 2}
-            width={radius * 2}
-            style={{ transform: 'rotate(-90deg)' }}
-          >
-            <circle
-              stroke="white"
-              strokeWidth={stroke}
-              fill="transparent"
-              r={normalizedRadius}
-              cx={radius}
-              cy={radius}
-            />
-            <circle
-              stroke="#6366f1" 
-              strokeWidth={stroke}
-              strokeDasharray={circumference + ' ' + circumference}
-              style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease-in-out' }}
-              strokeLinecap="round"
-              fill="transparent"
-              r={normalizedRadius}
-              cx={radius}
-              cy={radius}
-            />
-          </svg>
-          <div className="position-absolute text-center">
-            <div className="text-secondary mb-1" style={{ fontSize: '0.9rem', fontWeight: '500' }}>Available</div>
-            <div className="text-dark fw-bold" style={{ fontSize: '1.4rem' }}>{formatBytes(available)}</div>
+    <div className="card border-0 shadow-sm w-100" style={{ 
+      background: 'linear-gradient(to right, #667eea 0%, #8b5cf6 50%, #a855f7 100%)', 
+      borderRadius: '24px',
+      overflow: 'hidden'
+    }}>
+      <div className="card-body px-5 py-4">
+        <div className="d-flex align-items-center">
+          <div className="position-relative d-flex align-items-center justify-content-center me-4">
+            <svg height={radius * 2} width={radius * 2} style={{ transform: 'rotate(-90deg)' }}>
+              <circle stroke="rgba(255,255,255,0.25)" strokeWidth={stroke} fill="transparent" r={normalizedRadius} cx={radius} cy={radius} />
+              <circle stroke="white" strokeWidth={stroke} strokeDasharray={circumference + ' ' + circumference} style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease-in-out' }} strokeLinecap="round" fill="transparent" r={normalizedRadius} cx={radius} cy={radius} />
+            </svg>
+            <div className="position-absolute text-center">
+              <div className="text-white fw-bold" style={{ fontSize: '1.3rem' }}>{percentage.toFixed(0)}%</div>
+            </div>
           </div>
-        </div>
-        <div className="mt-2 text-secondary" style={{ fontSize: '0.9rem' }}>
-          <span className="fw-bold text-dark">{percentage.toFixed(1)}%</span> used
+          <div className="text-white flex-grow-1">
+            <div className="mb-3">
+              <div className="text-white opacity-75 mb-1" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Used Storage</div>
+              <div className="fw-bold" style={{ fontSize: '1.75rem', letterSpacing: '-0.02em' }}>{formatBytes(used)}</div>
+            </div>
+            <div>
+              <div className="text-white opacity-75 mb-1" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Available</div>
+              <div className="fw-semibold" style={{ fontSize: '1.25rem' }}>{formatBytes(available)}</div>
+            </div>
+          </div>
+          <div className="text-white text-end" style={{ fontSize: '1rem', fontWeight: '500' }}>
+            Total: {formatBytes(total)}
+          </div>
         </div>
       </div>
     </div>
@@ -126,12 +120,12 @@ const FileThumbnail = ({ item, storageHandler, fullPath }) => {
     return () => { if(url) URL.revokeObjectURL(url); };
   }, [item, storageHandler, fullPath]);
 
-  if (loading) return <span className="spinner-border spinner-border-sm text-secondary" role="status" style={{width: '24px', height: '24px'}}></span>;
+  if (loading) return <span className="spinner-border spinner-border-sm text-secondary" role="status" style={{width: '22px', height: '22px'}}></span>;
   if (error) {
-    return <span title="Error loading thumbnail. The file might be unavailable." onClick={(e) => { e.stopPropagation(); load(); }} style={{cursor: 'pointer'}}>⚠️</span>;
+    return <span title="Error loading thumbnail. The file might be unavailable." onClick={(e) => { e.stopPropagation(); load(); }} style={{cursor: 'pointer', fontSize: '1.2rem'}}>⚠️</span>;
   }
-  if (url) return <img src={url} alt="thumbnail" style={{width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px'}} />;
-  return <span>📄</span>;
+  if (url) return <img src={url} alt="thumbnail" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px'}} />;
+  return <span style={{ fontSize: '2rem' }}>📄</span>;
 };
 
 export default function Vault() {
@@ -152,8 +146,39 @@ export default function Vault() {
   const [blocked, setBlocked] = useState(false);
   const [selectedItemInfo, setSelectedItemInfo] = useState(null);
   const [storageInfo, setStorageInfo] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [starredItems, setStarredItems] = useState([]);
+  const [activeView, setActiveView] = useState('all'); // 'all', 'starred', 'recent', 'deleted'
 
   const logIfNotUserRejected = (err, prefix = '') => { const msg = err?.message || String(err || ''); if (/request rejected|user rejected/i.test(msg)) console.debug(prefix, 'user rejected signer request:', msg); else console.error(prefix, err); };
+
+  // Load starred items from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('jackal-starred-items');
+    if (saved) {
+      try {
+        setStarredItems(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load starred items:', e);
+      }
+    }
+  }, []);
+
+  // Toggle star status
+  const toggleStar = (item) => {
+    const itemKey = `${pathStackIds.join('/')}/${item.raw?.fileMeta?.name || item.name}`;
+    const newStarred = starredItems.includes(itemKey)
+      ? starredItems.filter(key => key !== itemKey)
+      : [...starredItems, itemKey];
+    setStarredItems(newStarred);
+    localStorage.setItem('jackal-starred-items', JSON.stringify(newStarred));
+  };
+
+  const isStarred = (item) => {
+    const itemKey = `${pathStackIds.join('/')}/${item.raw?.fileMeta?.name || item.name}`;
+    return starredItems.includes(itemKey);
+  };
 
   const handleAccountMissing = async (err) => {
     const msg = err?.message || String(err || "");
@@ -456,44 +481,228 @@ export default function Vault() {
     });
   };
 
-  if (walletLoading) return <div className="container py-5 text-center">Loading wallet...</div>;
-  if (!connected) return <div className="container py-5 text-center"><h1>🔐 Please connect your wallet first</h1><a href="/login" className="btn btn-primary mt-4">Go to Login</a></div>;
+  if (walletLoading) return <div className="container py-5 text-center"><div className="spinner-border text-primary" style={{width: '3rem', height: '3rem'}} role="status"><span className="visually-hidden">Loading...</span></div><p className="mt-3 text-muted">Loading wallet...</p></div>;
+  if (!connected) return (
+    <div className="container py-5 text-center">
+      <div className="card border-0 shadow-lg mx-auto" style={{ maxWidth: '500px', borderRadius: '20px' }}>
+        <div className="card-body p-5">
+          <div className="mb-4" style={{ fontSize: '4rem' }}>🔐</div>
+          <h2 className="mb-3">Wallet Not Connected</h2>
+          <p className="text-muted mb-4">Please connect your wallet to access your Jackal Vault</p>
+          <a href="/login" className="btn btn-lg px-5 py-3" style={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: 'none',
+            borderRadius: '12px',
+            color: 'white',
+            fontWeight: '600'
+          }}>Connect Wallet</a>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Filter items by search query and active view
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    
+    if (activeView === 'starred') {
+      return isStarred(item);
+    }
+    // Add more filters for 'recent' and 'deleted' when implemented
+    return true;
+  });
 
   return (
-    <div className="container py-5" onDragOver={handleDragOver} onDrop={handleDropOnRoot}>
-      <h1>☁️ My Jackal Vault</h1>
-      
-      {storageInfo && storageInfo.info && (
-        <StorageWidget 
-          used={(storageInfo.info.spaceUsed || 0) / REDUNDANCY_FACTOR} 
-          total={(storageInfo.info.spaceAvailable || 0) / REDUNDANCY_FACTOR} 
-        />
-      )}
+    <div className="d-flex" style={{ height: 'calc(100vh - 80px)', overflow: 'hidden' }}>
+      {/* Sidebar */}
+      <div className="d-flex flex-column" style={{ 
+        width: '240px', 
+        borderRight: '1px solid #e5e7eb',
+        background: '#fafbfc',
+        flexShrink: 0
+      }}>
+        <div className="p-4">
+          <div className="d-flex align-items-center gap-2 mb-4">
+            <div style={{ fontSize: '1.5rem' }}>☁️</div>
+            <div style={{ fontWeight: '700', color: '#1f2937', fontSize: '1.2rem' }}>Vault</div>
+          </div>
+          
+          {/* Navigation */}
+          <nav>
+            <div className="mb-2">
+              <button onClick={() => setActiveView('all')} className="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none w-100 border-0" style={{ 
+                borderRadius: '8px', 
+                background: activeView === 'all' ? '#e0e7ff' : 'transparent',
+                color: activeView === 'all' ? '#6366f1' : '#6b7280',
+                fontWeight: activeView === 'all' ? '600' : '400',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
+                <span>📂</span>
+                <span>All Files</span>
+              </button>
+            </div>
+            <div className="mb-2">
+              <button onClick={() => setActiveView('starred')} className="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none w-100 border-0" style={{ 
+                borderRadius: '8px',
+                background: activeView === 'starred' ? '#e0e7ff' : 'transparent',
+                color: activeView === 'starred' ? '#6366f1' : '#6b7280',
+                fontWeight: activeView === 'starred' ? '600' : '400',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
+                <span>⭐</span>
+                <span>Starred</span>
+                {starredItems.length > 0 && <span className="badge rounded-pill" style={{ background: '#6366f1', color: 'white', fontSize: '0.7rem', marginLeft: 'auto' }}>{starredItems.length}</span>}
+              </button>
+            </div>
+          </nav>
+        </div>
 
-      {statusMessage && <div className="alert alert-info">{statusMessage}</div>}
+        {/* Storage Widget in Sidebar */}
+        <div className="mt-auto p-3">
+          {storageInfo && storageInfo.info && (
+            <div className="card border-0 shadow-sm" style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+              borderRadius: '12px'
+            }}>
+              <div className="card-body p-3">
+                <div className="text-white mb-2" style={{ fontSize: '0.75rem', fontWeight: '600' }}>STORAGE</div>
+                <div className="position-relative mb-2" style={{ height: '6px', background: 'rgba(255,255,255,0.3)', borderRadius: '3px' }}>
+                  <div style={{ 
+                    width: `${Math.min((((storageInfo.info.spaceUsed || 0) / REDUNDANCY_FACTOR) / ((storageInfo.info.spaceAvailable || 0) / REDUNDANCY_FACTOR)) * 100, 100)}%`,
+                    height: '100%',
+                    background: 'white',
+                    borderRadius: '3px',
+                    transition: 'width 0.3s'
+                  }}></div>
+                </div>
+                <div className="text-white" style={{ fontSize: '0.8rem' }}>
+                  <strong>{formatBytes((storageInfo.info.spaceUsed || 0) / REDUNDANCY_FACTOR)}</strong> of <strong>{formatBytes((storageInfo.info.spaceAvailable || 0) / REDUNDANCY_FACTOR)}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-grow-1 d-flex flex-column" style={{ overflow: 'hidden' }}>
+        {/* Top Bar */}
+        <div className="border-bottom" style={{ background: 'white', padding: '16px 24px' }}>
+          <div className="d-flex align-items-center gap-3">
+            {/* Breadcrumb */}
+            <div className="d-flex align-items-center gap-2 flex-grow-1">
+              {pathStackIds.length > JACKAL_ROOT.length && (
+                <button className="btn btn-sm btn-link text-decoration-none p-0" onClick={handleGoBack} disabled={loading} style={{ color: '#6b7280' }}>
+                  <span style={{ fontSize: '1.2rem' }}>←</span>
+                </button>
+              )}
+              <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.95rem', color: '#374151' }}>
+                <span className="fw-semibold">{pathStack.slice(1).join(' / ') || 'Home'}</span>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="position-relative" style={{ width: '300px' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                placeholder="Search files..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ 
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  paddingLeft: '36px',
+                  fontSize: '0.9rem'
+                }}
+              />
+              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem' }}>🔍</span>
+            </div>
+
+            {/* View Toggle */}
+            <div className="btn-group" role="group">
+              <button 
+                className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                onClick={() => setViewMode('grid')}
+                style={{ borderRadius: '6px 0 0 6px', fontSize: '0.85rem' }}
+              >
+                ⊞
+              </button>
+              <button 
+                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                onClick={() => setViewMode('list')}
+                style={{ borderRadius: '0 6px 6px 0', fontSize: '0.85rem' }}
+              >
+                ☰
+              </button>
+            </div>
+
+            {/* Action Buttons */}
+            <button className="btn btn-sm btn-outline-primary" onClick={handleCreateFolder} disabled={loading} style={{ borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
+              + Folder
+            </button>
+            <div className="position-relative">
+              <button className="btn btn-sm btn-primary" disabled={uploading || loading} style={{ borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
+                {uploading ? 'Uploading...' : '+ Upload'}
+              </button>
+              <input type="file" className="position-absolute top-0 start-0 opacity-0 w-100 h-100" onChange={handleFileUpload} disabled={uploading || loading} style={{ cursor: 'pointer' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Status Messages */}
+        <div className="px-4 py-3">
+          {statusMessage && (
+            <div className="alert alert-info border-0 mb-0" style={{ borderRadius: '8px', fontSize: '0.9rem' }}>
+              <div className="d-flex align-items-center gap-2">
+                <div className="spinner-border spinner-border-sm" role="status"></div>
+                <span>{statusMessage}</span>
+              </div>
+            </div>
+          )}
+        </div>
       
+      {/* File Info Modal */}
       {selectedItemInfo && (
         <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">File Info: {selectedItemInfo.name}</h5>
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+              <div className="modal-header border-0 pb-0">
+                <h5 className="modal-title fw-bold">📄 {selectedItemInfo.name}</h5>
                 <button type="button" className="btn-close" onClick={() => setSelectedItemInfo(null)}></button>
               </div>
               <div className="modal-body">
-                <p><strong>Name:</strong> {selectedItemInfo.name}</p>
-                <p><strong>Type:</strong> {selectedItemInfo.isDir ? 'Folder' : 'File'}</p>
-                <p><strong>Path:</strong> {selectedItemInfo.fullPath}</p>
-                {!selectedItemInfo.isDir && <p><strong>Size:</strong> {(selectedItemInfo.size / (1024 * 1024)).toFixed(2)} MB</p>}
-                <p><strong>ULID:</strong> <small className="text-muted">{selectedItemInfo.ulid}</small></p>
-                {!selectedItemInfo.isDir && selectedItemInfo.merkle !== 'N/A' && (
-                  <p><strong>Merkle Root:</strong> <small className="text-muted text-break">{selectedItemInfo.merkle}</small></p>
+                <div className="mb-3">
+                  <small className="text-muted d-block mb-1">Type</small>
+                  <div className="badge bg-primary">{selectedItemInfo.isDir ? 'Folder' : 'File'}</div>
+                </div>
+                <div className="mb-3">
+                  <small className="text-muted d-block mb-1">Path</small>
+                  <code className="d-block p-2 bg-light rounded">{selectedItemInfo.fullPath}</code>
+                </div>
+                {!selectedItemInfo.isDir && (
+                  <div className="mb-3">
+                    <small className="text-muted d-block mb-1">Size</small>
+                    <strong>{formatBytes(selectedItemInfo.size)}</strong>
+                  </div>
                 )}
-                {!selectedItemInfo.isDir && selectedItemInfo.fid !== 'N/A' && (
-                  <p><strong>FID:</strong> <small className="text-muted text-break">{selectedItemInfo.fid}</small></p>
+                <div className="mb-3">
+                  <small className="text-muted d-block mb-1">ULID</small>
+                  <code className="d-block p-2 bg-light rounded text-break small">{selectedItemInfo.ulid}</code>
+                </div>
+                {!selectedItemInfo.isDir && selectedItemInfo.merkle !== 'N/A' && (
+                  <div className="mb-3">
+                    <small className="text-muted d-block mb-1">Merkle Root</small>
+                    <code className="d-block p-2 bg-light rounded text-break small">{selectedItemInfo.merkle}</code>
+                  </div>
                 )}
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer border-0">
                 <button type="button" className="btn btn-secondary" onClick={() => setSelectedItemInfo(null)}>Close</button>
               </div>
             </div>
@@ -501,53 +710,207 @@ export default function Vault() {
         </div>
       )}
 
-      {uploading && uploadProgress > 0 && (
-        <div className="mb-3">
-          <div className="progress" style={{ height: '25px' }}>
-            <div className="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style={{ width: `${uploadProgress}%` }} aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100">Upload: {uploadProgress}%</div>
-          </div>
+        {/* Progress Bars */}
+        <div className="px-4">
+          {uploading && uploadProgress > 0 && (
+            <div className="mb-3">
+              <div className="progress shadow-sm" style={{ height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                <div className="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style={{ 
+                  width: `${uploadProgress}%`,
+                  background: '#667eea'
+                }} aria-valuenow={uploadProgress} aria-valuemin="0" aria-valuemax="100"></div>
+              </div>
+              <small className="text-muted" style={{ fontSize: '0.8rem' }}>Uploading: {uploadProgress}%</small>
+            </div>
+          )}
+          {downloading && downloadProgress > 0 && (
+            <div className="mb-3">
+              <div className="progress shadow-sm" style={{ height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                <div className="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style={{ 
+                  width: `${downloadProgress}%`,
+                  background: '#667eea'
+                }} aria-valuenow={downloadProgress} aria-valuemin="0" aria-valuemax="100"></div>
+              </div>
+              <small className="text-muted" style={{ fontSize: '0.8rem' }}>Downloading: {downloadProgress}%</small>
+            </div>
+          )}
         </div>
-      )}
-      {downloading && downloadProgress > 0 && (
-        <div className="mb-3">
-          <div className="progress" style={{ height: '25px' }}>
-            <div className="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style={{ width: `${downloadProgress}%`, backgroundColor: '#E0CCFF', color: 'black' }} aria-valuenow={downloadProgress} aria-valuemin="0" aria-valuemax="100">Download: {downloadProgress}%</div>
-          </div>
-        </div>
-      )}
-      <div className="d-flex gap-2 my-3">
-        {pathStackIds.length > JACKAL_ROOT.length && (
-          <button className="btn btn-secondary" onClick={handleGoBack} disabled={loading}>⬅ Back</button>
-        )}
-        <button className="btn btn-primary" onClick={handleCreateFolder} disabled={loading}>+ New Folder</button>
-        <div className="btn btn-success position-relative overflow-hidden">{uploading ? "Uploading..." : "+ Upload File"}<input type="file" className="position-absolute top-0 start-0 opacity-0 w-100 h-100" onChange={handleFileUpload} disabled={uploading || loading} /></div>
-      </div>
-      <h5>Path:<code className="bg-light p-1 rounded mx-2">{pathStack.slice(1).join(" / ")}</code></h5>
-      {loading ? <p>Loading...</p> : (
-        <ul className="list-group mt-4">
-          {items.length === 0 ? <li className="list-group-item text-muted">This folder is empty.</li> : items.map((item, i) => {
-            const isFolder = item.isDir || item.type === "folder";
-            const parentPath = pathStackIds.join('/');
-            const fullPath = (parentPath + '/' + (item.raw?.fileMeta?.name || item.name)).replace(/(^\/|\/\/$)/g, '');
 
-            return (
-              <li key={i} className={`list-group-item d-flex justify-content-between align-items-center ${isFolder && dragOverId === (item?.raw?.name || item.name) ? 'bg-light' : ''}`} data-is-folder={isFolder ? "true" : "false"} onDragOver={isFolder ? handleDragOver : undefined} onDragEnter={isFolder ? () => handleDragEnterFolder(item) : undefined} onDragLeave={isFolder ? () => handleDragLeaveFolder(item) : undefined} onDrop={isFolder ? (e) => handleDropOnFolder(item, e) : undefined}>
-                <div style={{ cursor: isFolder ? "pointer" : "default" }} onClick={() => isFolder && handleOpenFolder(item)} className="d-flex align-items-center gap-2">
-                  {isFolder ? <span>📁</span> : <FileThumbnail item={item} storageHandler={storageHandler} fullPath={fullPath} />}
-                  <strong>{item.name}</strong>
-                  {!isFolder && <small className="text-muted ms-2">{(item.size / (1024 * 1024)).toFixed(2)} MB</small>}
-                </div>
-                <div className="d-flex gap-2">
-                  <button className="btn btn-sm btn-outline-info" onClick={() => handleShowInfo(item)}>ℹ</button>
-                  {!isFolder && <button className="btn btn-sm btn-outline-primary" onClick={() => handleDownload(item)} disabled={downloading}>⬇</button>}
-                  <button className="btn btn-sm btn-outline-secondary" onClick={() => handleRenameItem(item)}>🖉</button>
-                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteItem(item)}>🗑</button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+        {/* File List */}
+        <div className="flex-grow-1" style={{ overflowY: 'auto', padding: '0 24px 24px' }} onDragOver={handleDragOver} onDrop={handleDropOnRoot}>
+          {loading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary mb-3" role="status"></div>
+              <p className="text-muted">Loading files...</p>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="text-center py-5">
+              <div style={{ fontSize: '4rem', opacity: 0.2 }}>📂</div>
+              <p className="text-muted mb-0">{items.length === 0 ? 'This folder is empty' : 'No files match your search'}</p>
+              {items.length === 0 && <small className="text-muted">Drag and drop files here or click Upload</small>}
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="row g-3">
+              {filteredItems.map((item, i) => {
+                const isFolder = item.isDir || item.type === "folder";
+                const parentPath = pathStackIds.join('/');
+                const fullPath = (parentPath + '/' + (item.raw?.fileMeta?.name || item.name)).replace(/(^\/|\/\/$)/g, '');
+
+                return (
+                  <div key={i} className="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <div 
+                      className="card border-0 h-100" 
+                      style={{ 
+                        background: isFolder && dragOverId === (item?.raw?.name || item.name) ? '#f3f4f6' : 'transparent',
+                        cursor: isFolder ? 'pointer' : 'default',
+                        transition: 'all 0.2s'
+                      }}
+                      data-is-folder={isFolder ? "true" : "false"}
+                      onDragOver={isFolder ? handleDragOver : undefined}
+                      onDragEnter={isFolder ? () => handleDragEnterFolder(item) : undefined}
+                      onDragLeave={isFolder ? () => handleDragLeaveFolder(item) : undefined}
+                      onDrop={isFolder ? (e) => handleDropOnFolder(item, e) : undefined}
+                      onDoubleClick={() => isFolder && handleOpenFolder(item)}
+                    >
+                      <div className="card-body p-2 text-center">
+                        <div className="mb-2 d-flex align-items-center justify-content-center" style={{ height: '80px' }}>
+                          {isFolder ? (
+                            <div style={{ fontSize: '3.5rem' }}>📁</div>
+                          ) : (
+                            <div style={{ width: '60px', height: '60px' }}>
+                              <FileThumbnail item={item} storageHandler={storageHandler} fullPath={fullPath} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-truncate mb-1" style={{ fontSize: '0.85rem', fontWeight: '500', color: '#1f2937' }}>
+                          {item.name}
+                        </div>
+                        {!isFolder && (
+                          <small className="text-muted" style={{ fontSize: '0.75rem' }}>{formatBytes(item.size)}</small>
+                        )}
+                        <div className="d-flex gap-1 justify-content-center mt-2">
+                          <button 
+                            className="btn btn-sm p-1" 
+                            onClick={(e) => { e.stopPropagation(); toggleStar(item); }}
+                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
+                            title={isStarred(item) ? 'Unstar' : 'Star'}
+                          >{isStarred(item) ? '⭐' : '☆'}</button>
+                          <button 
+                            className="btn btn-sm p-1" 
+                            onClick={(e) => { e.stopPropagation(); handleShowInfo(item); }}
+                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
+                            title="Info"
+                          >ℹ️</button>
+                          {!isFolder && (
+                            <button 
+                              className="btn btn-sm p-1" 
+                              onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
+                              disabled={downloading}
+                              style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
+                              title="Download"
+                            >⬇️</button>
+                          )}
+                          <button 
+                            className="btn btn-sm p-1" 
+                            onClick={(e) => { e.stopPropagation(); handleRenameItem(item); }}
+                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
+                            title="Rename"
+                          >✏️</button>
+                          <button 
+                            className="btn btn-sm p-1" 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteItem(item); }}
+                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
+                            title="Delete"
+                          >🗑️</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="list-group list-group-flush">
+              {filteredItems.map((item, i) => {
+                const isFolder = item.isDir || item.type === "folder";
+                const parentPath = pathStackIds.join('/');
+                const fullPath = (parentPath + '/' + (item.raw?.fileMeta?.name || item.name)).replace(/(^\/|\/\/$)/g, '');
+
+                return (
+                  <div 
+                    key={i} 
+                    className="list-group-item border-0 d-flex align-items-center py-2 px-3"
+                    style={{ 
+                      background: isFolder && dragOverId === (item?.raw?.name || item.name) ? '#f3f4f6' : 'transparent',
+                      cursor: isFolder ? 'pointer' : 'default',
+                      borderBottom: i < filteredItems.length - 1 ? '1px solid #f3f4f6' : 'none'
+                    }}
+                    data-is-folder={isFolder ? "true" : "false"}
+                    onDragOver={isFolder ? handleDragOver : undefined}
+                    onDragEnter={isFolder ? () => handleDragEnterFolder(item) : undefined}
+                    onDragLeave={isFolder ? () => handleDragLeaveFolder(item) : undefined}
+                    onDrop={isFolder ? (e) => handleDropOnFolder(item, e) : undefined}
+                    onDoubleClick={() => isFolder && handleOpenFolder(item)}
+                  >
+                    <div style={{ width: '32px', height: '32px', marginRight: '12px' }}>
+                      {isFolder ? (
+                        <span style={{ fontSize: '1.8rem' }}>📁</span>
+                      ) : (
+                        <FileThumbnail item={item} storageHandler={storageHandler} fullPath={fullPath} />
+                      )}
+                    </div>
+                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                      <div className="text-truncate" style={{ fontSize: '0.9rem', fontWeight: '500', color: '#1f2937' }}>
+                        {item.name}
+                      </div>
+                    </div>
+                    {!isFolder && (
+                      <div className="text-muted me-3" style={{ fontSize: '0.85rem', width: '80px', textAlign: 'right' }}>
+                        {formatBytes(item.size)}
+                      </div>
+                    )}
+                    <div className="d-flex gap-1">
+                      <button 
+                        className="btn btn-sm p-1" 
+                        onClick={(e) => { e.stopPropagation(); toggleStar(item); }}
+                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
+                        title={isStarred(item) ? 'Unstar' : 'Star'}
+                      >{isStarred(item) ? '⭐' : '☆'}</button>
+                      <button 
+                        className="btn btn-sm p-1" 
+                        onClick={(e) => { e.stopPropagation(); handleShowInfo(item); }}
+                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
+                        title="Info"
+                      >ℹ️</button>
+                      {!isFolder && (
+                        <button 
+                          className="btn btn-sm p-1" 
+                          onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
+                          disabled={downloading}
+                          style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
+                          title="Download"
+                        >⬇️</button>
+                      )}
+                      <button 
+                        className="btn btn-sm p-1" 
+                        onClick={(e) => { e.stopPropagation(); handleRenameItem(item); }}
+                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
+                        title="Rename"
+                      >✏️</button>
+                      <button 
+                        className="btn btn-sm p-1" 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteItem(item); }}
+                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
+                        title="Delete"
+                      >🗑️</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
