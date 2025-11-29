@@ -587,14 +587,14 @@ export default function Vault() {
       {/* Sidebar */}
       <div className="d-flex flex-column" style={{ 
         width: '240px', 
-        borderRight: '1px solid #e5e7eb',
-        background: '#fafbfc',
+        borderRight: '1px solid var(--card-border)',
+        background: 'var(--sidebar-bg)',
         flexShrink: 0
       }}>
         <div className="p-4">
           <div className="d-flex align-items-center gap-2 mb-4">
             <i className="bi bi-cloud-fill" style={{ fontSize: '1.5rem', color: '#6366f1' }}></i>
-            <div style={{ fontWeight: '700', color: '#1f2937', fontSize: '1.2rem' }}>Vault</div>
+            <div style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '1.2rem' }}>Vault</div>
           </div>
           
           {/* Navigation */}
@@ -602,8 +602,8 @@ export default function Vault() {
             <div className="mb-2">
               <button onClick={() => setActiveView('all')} className="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none w-100 border-0" style={{ 
                 borderRadius: '8px', 
-                background: activeView === 'all' ? '#e0e7ff' : 'transparent',
-                color: activeView === 'all' ? '#6366f1' : '#6b7280',
+                background: activeView === 'all' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                color: activeView === 'all' ? '#6366f1' : 'var(--text-secondary)',
                 fontWeight: activeView === 'all' ? '600' : '400',
                 fontSize: '0.9rem',
                 cursor: 'pointer',
@@ -616,8 +616,8 @@ export default function Vault() {
             <div className="mb-2">
               <button onClick={() => setActiveView('starred')} className="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none w-100 border-0" style={{ 
                 borderRadius: '8px',
-                background: activeView === 'starred' ? '#e0e7ff' : 'transparent',
-                color: activeView === 'starred' ? '#6366f1' : '#6b7280',
+                background: activeView === 'starred' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                color: activeView === 'starred' ? '#6366f1' : 'var(--text-secondary)',
                 fontWeight: activeView === 'starred' ? '600' : '400',
                 fontSize: '0.9rem',
                 cursor: 'pointer',
@@ -661,16 +661,16 @@ export default function Vault() {
       {/* Main Content */}
       <div className="flex-grow-1 d-flex flex-column" style={{ overflow: 'hidden' }}>
         {/* Top Bar */}
-        <div className="border-bottom" style={{ background: 'white', padding: '16px 24px' }}>
+        <div className="border-bottom" style={{ background: 'var(--card-bg)', padding: '16px 24px', borderColor: 'var(--card-border)' }}>
           <div className="d-flex align-items-center gap-3">
             {/* Breadcrumb */}
             <div className="d-flex align-items-center gap-2 flex-grow-1">
               {pathStackIds.length > JACKAL_ROOT.length && (
-                <button className="btn btn-sm btn-link text-decoration-none p-0" onClick={handleGoBack} disabled={loading} style={{ color: '#6b7280' }}>
+                <button className="btn btn-sm btn-link text-decoration-none p-0" onClick={handleGoBack} disabled={loading} style={{ color: 'var(--text-secondary)' }}>
                   <i className="bi bi-arrow-left" style={{ fontSize: '1.2rem' }}></i>
                 </button>
               )}
-              <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.95rem', color: '#374151' }}>
+              <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                 <span className="fw-semibold">{pathStack.slice(1).join(' / ') || 'Home'}</span>
               </div>
             </div>
@@ -685,12 +685,14 @@ export default function Vault() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{ 
                   borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid var(--input-border)',
                   paddingLeft: '36px',
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  background: 'var(--input-bg)',
+                  color: 'var(--text-primary)'
                 }}
               />
-              <i className="bi bi-search" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', color: '#6b7280' }}></i>
+              <i className="bi bi-search" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', color: 'var(--text-secondary)' }}></i>
             </div>
 
             {/* View Toggle */}
@@ -894,7 +896,7 @@ export default function Vault() {
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="text-center py-5">
-              <i className="bi bi-folder2-open" style={{ fontSize: '4rem', opacity: 0.2, color: '#6b7280' }}></i>
+              <i className="bi bi-folder2-open" style={{ fontSize: '4rem', opacity: 0.2, color: 'var(--text-secondary)' }}></i>
               <p className="text-muted mb-0">{items.length === 0 ? 'This folder is empty' : 'No files match your search'}</p>
               {items.length === 0 && <small className="text-muted">Drag and drop files here or click Upload</small>}
             </div>
@@ -910,7 +912,7 @@ export default function Vault() {
                     <div 
                       className="card border-0 h-100" 
                       style={{ 
-                        background: isFolder && dragOverId === (item?.raw?.name || item.name) ? '#f3f4f6' : 'transparent',
+                        background: isFolder && dragOverId === (item?.raw?.name || item.name) ? 'var(--hover-bg)' : 'transparent',
                         cursor: isFolder ? 'pointer' : 'default',
                         transition: 'all 0.2s'
                       }}
@@ -931,7 +933,7 @@ export default function Vault() {
                             </div>
                           )}
                         </div>
-                        <div className="text-truncate mb-1" style={{ fontSize: '0.85rem', fontWeight: '500', color: '#1f2937' }}>
+                        <div className="text-truncate mb-1" style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-primary)' }}>
                           {item.name}
                         </div>
                         {!isFolder && (
@@ -997,9 +999,9 @@ export default function Vault() {
                     key={i} 
                     className="list-group-item border-0 d-flex align-items-center py-2 px-3"
                     style={{ 
-                      background: isFolder && dragOverId === (item?.raw?.name || item.name) ? '#f3f4f6' : 'transparent',
+                      background: isFolder && dragOverId === (item?.raw?.name || item.name) ? 'var(--hover-bg)' : 'transparent',
                       cursor: isFolder ? 'pointer' : 'default',
-                      borderBottom: i < filteredItems.length - 1 ? '1px solid #f3f4f6' : 'none'
+                      borderBottom: i < filteredItems.length - 1 ? '1px solid var(--card-border)' : 'none'
                     }}
                     data-is-folder={isFolder ? "true" : "false"}
                     onDragOver={isFolder ? handleDragOver : undefined}
@@ -1016,7 +1018,7 @@ export default function Vault() {
                       )}
                     </div>
                     <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                      <div className="text-truncate" style={{ fontSize: '0.9rem', fontWeight: '500', color: '#1f2937' }}>
+                      <div className="text-truncate" style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-primary)' }}>
                         {item.name}
                       </div>
                     </div>

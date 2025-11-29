@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useWallet } from "@/context/WalletContext";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function Header() {
   const { userName, setUserName } = useUser();
   const { connected, disconnectWallet } = useWallet();
+  const { theme, toggleTheme } = useTheme();
   const [keplrInfo, setKeplrInfo] = useState({ name: null, address: null });
 
   useEffect(() => {
@@ -43,6 +45,16 @@ export default function Header() {
               {connected && <li className="nav-item"><Link className="nav-link active" href="/vault">📦 Vault</Link></li>}
               <li className="nav-item"><Link className="nav-link" href="/pricing">Pricing</Link></li>
               <li className="nav-item"><Link className="nav-link" href="/faq">FAQ</Link></li>
+              <li className="nav-item ms-3 d-flex align-items-center">
+                <button 
+                  className="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center" 
+                  onClick={toggleTheme}
+                  title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                  style={{ width: '38px', height: '38px' }}
+                >
+                  <i className={`bi ${theme === 'light' ? 'bi-moon-stars-fill' : 'bi-sun-fill'}`}></i>
+                </button>
+              </li>
               <li className="nav-item ms-3">
                 {connected ? (
                   <div className="d-flex align-items-center gap-2">
