@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { showErrorAlert } from "@/utils/alerts/error";
-import { loadDirectoryContents, createNewFolder, downloadFile, uploadFile, deleteItem, renameItem, safeUpgradeSigner, getStorageStatus } from "@/lib/jackalActions";
+import { loadDirectoryContents, createNewFolder, downloadFile, uploadFile, deleteItem, renameItem, safeUpgradeSigner, getStorageStatus, shareFile, unshareFile, getFileViewers } from "@/lib/jackalActions";
 
 const JACKAL_ROOT = ["s", "Home"];
 const REDUNDANCY_FACTOR = 3; // Jackal protocol uses 3x redundancy
@@ -125,7 +125,7 @@ const FileThumbnail = ({ item, storageHandler, fullPath }) => {
     return <span title="Error loading thumbnail. The file might be unavailable." onClick={(e) => { e.stopPropagation(); load(); }} style={{cursor: 'pointer', fontSize: '1.2rem'}}>⚠️</span>;
   }
   if (url) return <img src={url} alt="thumbnail" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px'}} />;
-  return <span style={{ fontSize: '2rem' }}>📄</span>;
+  return <i className="bi bi-file-earmark-fill" style={{ fontSize: '2rem', color: '#6b7280' }}></i>;
 };
 
 export default function Vault() {
@@ -150,6 +150,10 @@ export default function Vault() {
   const [searchQuery, setSearchQuery] = useState('');
   const [starredItems, setStarredItems] = useState([]);
   const [activeView, setActiveView] = useState('all'); // 'all', 'starred', 'recent', 'deleted'
+  const [shareModalItem, setShareModalItem] = useState(null);
+  const [shareAddress, setShareAddress] = useState('');
+  const [fileViewers, setFileViewers] = useState([]);
+  const [sharingLoading, setSharingLoading] = useState(false);
 
   const logIfNotUserRejected = (err, prefix = '') => { const msg = err?.message || String(err || ''); if (/request rejected|user rejected/i.test(msg)) console.debug(prefix, 'user rejected signer request:', msg); else console.error(prefix, err); };
 
@@ -481,6 +485,71 @@ export default function Vault() {
     });
   };
 
+  const handleOpenShareModal = async (item) => {
+    setShareModalItem(item);
+    setShareAddress('');
+    setSharingLoading(true);
+    try {
+      const fullPath = pathStackIds.join("/") + "/" + (item.raw?.fileMeta?.name || item.name);
+      const viewers = await getFileViewers(storageHandler, fullPath, item.raw);
+      setFileViewers(viewers);
+    } catch (err) {
+      console.error('Failed to load viewers:', err);
+      setFileViewers([]);
+    } finally {
+      setSharingLoading(false);
+    }
+  };
+
+  const handleShareFile = async () => {
+    if (!shareAddress || !shareModalItem || !storageHandler) return;
+    
+    // Validate Jackal address format
+    if (!shareAddress.startsWith('jkl')) {
+      await showErrorAlert('Invalid Address', 'Please enter a valid Jackal address (starts with "jkl")');
+      return;
+    }
+
+    setSharingLoading(true);
+    try {
+      const fullPath = pathStackIds.join("/") + "/" + (shareModalItem.raw?.fileMeta?.name || shareModalItem.name);
+      await shareFile(storageHandler, fullPath, shareAddress, shareModalItem.raw);
+      
+      // Refresh viewers list
+      const viewers = await getFileViewers(storageHandler, fullPath, shareModalItem.raw);
+      setFileViewers(viewers);
+      setShareAddress('');
+      setStatusMessage('File shared successfully!');
+      setTimeout(() => setStatusMessage(''), 3000);
+    } catch (err) {
+      console.error('Share failed:', err);
+      await showErrorAlert('Share Failed', err?.message || String(err));
+    } finally {
+      setSharingLoading(false);
+    }
+  };
+
+  const handleUnshareFile = async (viewerAddress) => {
+    if (!shareModalItem || !storageHandler) return;
+    
+    setSharingLoading(true);
+    try {
+      const fullPath = pathStackIds.join("/") + "/" + (shareModalItem.raw?.fileMeta?.name || shareModalItem.name);
+      await unshareFile(storageHandler, fullPath, viewerAddress, shareModalItem.raw);
+      
+      // Refresh viewers list
+      const viewers = await getFileViewers(storageHandler, fullPath, shareModalItem.raw);
+      setFileViewers(viewers);
+      setStatusMessage('Access revoked successfully!');
+      setTimeout(() => setStatusMessage(''), 3000);
+    } catch (err) {
+      console.error('Unshare failed:', err);
+      await showErrorAlert('Revoke Failed', err?.message || String(err));
+    } finally {
+      setSharingLoading(false);
+    }
+  };
+
   if (walletLoading) return <div className="container py-5 text-center"><div className="spinner-border text-primary" style={{width: '3rem', height: '3rem'}} role="status"><span className="visually-hidden">Loading...</span></div><p className="mt-3 text-muted">Loading wallet...</p></div>;
   if (!connected) return (
     <div className="container py-5 text-center">
@@ -524,7 +593,7 @@ export default function Vault() {
       }}>
         <div className="p-4">
           <div className="d-flex align-items-center gap-2 mb-4">
-            <div style={{ fontSize: '1.5rem' }}>☁️</div>
+            <i className="bi bi-cloud-fill" style={{ fontSize: '1.5rem', color: '#6366f1' }}></i>
             <div style={{ fontWeight: '700', color: '#1f2937', fontSize: '1.2rem' }}>Vault</div>
           </div>
           
@@ -540,7 +609,7 @@ export default function Vault() {
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}>
-                <span>📂</span>
+                <i className="bi bi-folder-fill"></i>
                 <span>All Files</span>
               </button>
             </div>
@@ -554,7 +623,7 @@ export default function Vault() {
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}>
-                <span>⭐</span>
+                <i className="bi bi-star-fill"></i>
                 <span>Starred</span>
                 {starredItems.length > 0 && <span className="badge rounded-pill" style={{ background: '#6366f1', color: 'white', fontSize: '0.7rem', marginLeft: 'auto' }}>{starredItems.length}</span>}
               </button>
@@ -598,7 +667,7 @@ export default function Vault() {
             <div className="d-flex align-items-center gap-2 flex-grow-1">
               {pathStackIds.length > JACKAL_ROOT.length && (
                 <button className="btn btn-sm btn-link text-decoration-none p-0" onClick={handleGoBack} disabled={loading} style={{ color: '#6b7280' }}>
-                  <span style={{ fontSize: '1.2rem' }}>←</span>
+                  <i className="bi bi-arrow-left" style={{ fontSize: '1.2rem' }}></i>
                 </button>
               )}
               <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.95rem', color: '#374151' }}>
@@ -621,7 +690,7 @@ export default function Vault() {
                   fontSize: '0.9rem'
                 }}
               />
-              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem' }}>🔍</span>
+              <i className="bi bi-search" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', color: '#6b7280' }}></i>
             </div>
 
             {/* View Toggle */}
@@ -631,14 +700,14 @@ export default function Vault() {
                 onClick={() => setViewMode('grid')}
                 style={{ borderRadius: '6px 0 0 6px', fontSize: '0.85rem' }}
               >
-                ⊞
+                <i className="bi bi-grid-3x3-gap-fill"></i>
               </button>
               <button 
                 className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
                 onClick={() => setViewMode('list')}
                 style={{ borderRadius: '0 6px 6px 0', fontSize: '0.85rem' }}
               >
-                ☰
+                <i className="bi bi-list-ul"></i>
               </button>
             </div>
 
@@ -673,7 +742,10 @@ export default function Vault() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
               <div className="modal-header border-0 pb-0">
-                <h5 className="modal-title fw-bold">📄 {selectedItemInfo.name}</h5>
+                <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
+                  <i className="bi bi-file-earmark-text-fill" style={{ color: '#3b82f6' }}></i>
+                  {selectedItemInfo.name}
+                </h5>
                 <button type="button" className="btn-close" onClick={() => setSelectedItemInfo(null)}></button>
               </div>
               <div className="modal-body">
@@ -704,6 +776,83 @@ export default function Vault() {
               </div>
               <div className="modal-footer border-0">
                 <button type="button" className="btn btn-secondary" onClick={() => setSelectedItemInfo(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {shareModalItem && (
+        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+              <div className="modal-header border-0 pb-0">
+                <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
+                  <i className="bi bi-share-fill" style={{ color: '#8b5cf6' }}></i>
+                  Share "{shareModalItem.name}"
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShareModalItem(null)}></button>
+              </div>
+              <div className="modal-body">
+                {/* Add Viewer */}
+                <div className="mb-4">
+                  <label className="form-label fw-semibold" style={{ fontSize: '0.9rem' }}>Grant View Access</label>
+                  <div className="input-group">
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="jkl1abc..." 
+                      value={shareAddress}
+                      onChange={(e) => setShareAddress(e.target.value)}
+                      disabled={sharingLoading}
+                      style={{ borderRadius: '8px 0 0 8px' }}
+                    />
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={handleShareFile}
+                      disabled={sharingLoading || !shareAddress}
+                      style={{ borderRadius: '0 8px 8px 0' }}
+                    >
+                      {sharingLoading ? 'Sharing...' : 'Share'}
+                    </button>
+                  </div>
+                  <small className="text-muted">Enter a Jackal address to grant read access</small>
+                </div>
+
+                {/* Current Viewers */}
+                <div>
+                  <label className="form-label fw-semibold mb-2" style={{ fontSize: '0.9rem' }}>Current Viewers</label>
+                  {sharingLoading && fileViewers.length === 0 ? (
+                    <div className="text-center py-3">
+                      <div className="spinner-border spinner-border-sm text-primary" role="status"></div>
+                      <p className="text-muted small mb-0 mt-2">Loading viewers...</p>
+                    </div>
+                  ) : fileViewers.length === 0 ? (
+                    <div className="text-center py-3">
+                      <p className="text-muted small mb-0">No viewers yet</p>
+                    </div>
+                  ) : (
+                    <ul className="list-group">
+                      {fileViewers.map((viewer, idx) => (
+                        <li key={idx} className="list-group-item d-flex justify-content-between align-items-center">
+                          <code className="small text-truncate flex-grow-1" style={{ maxWidth: '70%' }}>{viewer}</code>
+                          <button 
+                            className="btn btn-sm btn-outline-danger" 
+                            onClick={() => handleUnshareFile(viewer)}
+                            disabled={sharingLoading}
+                            style={{ fontSize: '0.75rem' }}
+                          >
+                            Revoke
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer border-0">
+                <button type="button" className="btn btn-secondary" onClick={() => setShareModalItem(null)}>Close</button>
               </div>
             </div>
           </div>
@@ -745,7 +894,7 @@ export default function Vault() {
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="text-center py-5">
-              <div style={{ fontSize: '4rem', opacity: 0.2 }}>📂</div>
+              <i className="bi bi-folder2-open" style={{ fontSize: '4rem', opacity: 0.2, color: '#6b7280' }}></i>
               <p className="text-muted mb-0">{items.length === 0 ? 'This folder is empty' : 'No files match your search'}</p>
               {items.length === 0 && <small className="text-muted">Drag and drop files here or click Upload</small>}
             </div>
@@ -775,7 +924,7 @@ export default function Vault() {
                       <div className="card-body p-2 text-center">
                         <div className="mb-2 d-flex align-items-center justify-content-center" style={{ height: '80px' }}>
                           {isFolder ? (
-                            <div style={{ fontSize: '3.5rem' }}>📁</div>
+                            <i className="bi bi-folder-fill" style={{ fontSize: '3.5rem', color: '#f59e0b' }}></i>
                           ) : (
                             <div style={{ width: '60px', height: '60px' }}>
                               <FileThumbnail item={item} storageHandler={storageHandler} fullPath={fullPath} />
@@ -792,36 +941,43 @@ export default function Vault() {
                           <button 
                             className="btn btn-sm p-1" 
                             onClick={(e) => { e.stopPropagation(); toggleStar(item); }}
-                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
+                            style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: isStarred(item) ? '#fbbf24' : '#d1d5db' }}
                             title={isStarred(item) ? 'Unstar' : 'Star'}
-                          >{isStarred(item) ? '⭐' : '☆'}</button>
-                          <button 
-                            className="btn btn-sm p-1" 
-                            onClick={(e) => { e.stopPropagation(); handleShowInfo(item); }}
-                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
-                            title="Info"
-                          >ℹ️</button>
+                          ><i className={`bi bi-star${isStarred(item) ? '-fill' : ''}`}></i></button>
                           {!isFolder && (
                             <button 
                               className="btn btn-sm p-1" 
                               onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
                               disabled={downloading}
-                              style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
+                              style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: '#10b981' }}
                               title="Download"
-                            >⬇️</button>
+                            ><i className="bi bi-download"></i></button>
                           )}
-                          <button 
-                            className="btn btn-sm p-1" 
-                            onClick={(e) => { e.stopPropagation(); handleRenameItem(item); }}
-                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
-                            title="Rename"
-                          >✏️</button>
-                          <button 
-                            className="btn btn-sm p-1" 
-                            onClick={(e) => { e.stopPropagation(); handleDeleteItem(item); }}
-                            style={{ fontSize: '0.85rem', border: 'none', background: 'transparent' }}
-                            title="Delete"
-                          >🗑️</button>
+                          {!isFolder && (
+                            <button 
+                              className="btn btn-sm p-1" 
+                              onClick={(e) => { e.stopPropagation(); handleOpenShareModal(item); }}
+                              style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: '#8b5cf6' }}
+                              title="Share"
+                            ><i className="bi bi-share-fill"></i></button>
+                          )}
+                          <div className="dropdown d-inline-block">
+                            <button 
+                              className="btn btn-sm p-1 dropdown-toggle" 
+                              type="button"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: '#6b7280' }}
+                              title="More"
+                            ><i className="bi bi-three-dots"></i></button>
+                            <ul className="dropdown-menu dropdown-menu-end" onClick={(e) => e.stopPropagation()}>
+                              <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleShowInfo(item); }}><i className="bi bi-info-circle me-2"></i>Info</a></li>
+                              <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleRenameItem(item); }}><i className="bi bi-pencil me-2"></i>Rename</a></li>
+                              <li><hr className="dropdown-divider" /></li>
+                              <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleDeleteItem(item); }}><i className="bi bi-trash me-2"></i>Delete</a></li>
+                            </ul>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -854,7 +1010,7 @@ export default function Vault() {
                   >
                     <div style={{ width: '32px', height: '32px', marginRight: '12px' }}>
                       {isFolder ? (
-                        <span style={{ fontSize: '1.8rem' }}>📁</span>
+                        <i className="bi bi-folder-fill" style={{ fontSize: '1.8rem', color: '#f59e0b' }}></i>
                       ) : (
                         <FileThumbnail item={item} storageHandler={storageHandler} fullPath={fullPath} />
                       )}
@@ -873,36 +1029,43 @@ export default function Vault() {
                       <button 
                         className="btn btn-sm p-1" 
                         onClick={(e) => { e.stopPropagation(); toggleStar(item); }}
-                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
+                        style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: isStarred(item) ? '#fbbf24' : '#d1d5db' }}
                         title={isStarred(item) ? 'Unstar' : 'Star'}
-                      >{isStarred(item) ? '⭐' : '☆'}</button>
-                      <button 
-                        className="btn btn-sm p-1" 
-                        onClick={(e) => { e.stopPropagation(); handleShowInfo(item); }}
-                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
-                        title="Info"
-                      >ℹ️</button>
+                      ><i className={`bi bi-star${isStarred(item) ? '-fill' : ''}`}></i></button>
                       {!isFolder && (
                         <button 
                           className="btn btn-sm p-1" 
                           onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
                           disabled={downloading}
-                          style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
+                          style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: '#10b981' }}
                           title="Download"
-                        >⬇️</button>
+                        ><i className="bi bi-download"></i></button>
                       )}
-                      <button 
-                        className="btn btn-sm p-1" 
-                        onClick={(e) => { e.stopPropagation(); handleRenameItem(item); }}
-                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
-                        title="Rename"
-                      >✏️</button>
-                      <button 
-                        className="btn btn-sm p-1" 
-                        onClick={(e) => { e.stopPropagation(); handleDeleteItem(item); }}
-                        style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
-                        title="Delete"
-                      >🗑️</button>
+                      {!isFolder && (
+                        <button 
+                          className="btn btn-sm p-1" 
+                          onClick={(e) => { e.stopPropagation(); handleOpenShareModal(item); }}
+                          style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: '#8b5cf6' }}
+                          title="Share"
+                        ><i className="bi bi-share-fill"></i></button>
+                      )}
+                      <div className="dropdown d-inline-block">
+                        <button 
+                          className="btn btn-sm p-1 dropdown-toggle" 
+                          type="button"
+                          data-bs-toggle="dropdown"
+                          aria-expanded="false"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: '#6b7280' }}
+                          title="More"
+                        ><i className="bi bi-three-dots"></i></button>
+                        <ul className="dropdown-menu dropdown-menu-end" onClick={(e) => e.stopPropagation()}>
+                          <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleShowInfo(item); }}><i className="bi bi-info-circle me-2"></i>Info</a></li>
+                          <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleRenameItem(item); }}><i className="bi bi-pencil me-2"></i>Rename</a></li>
+                          <li><hr className="dropdown-divider" /></li>
+                          <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleDeleteItem(item); }}><i className="bi bi-trash me-2"></i>Delete</a></li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 );
