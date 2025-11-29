@@ -12,7 +12,6 @@ export async function uploadFile(handler, file, parentPath) {
         try {
             await handler.loadDirectory({ path: cleanParentPath });
         } catch (e) {
-            console.warn('uploadFile: failed to switch directory to', cleanParentPath, e);
         }
     }
 
@@ -58,7 +57,6 @@ export async function uploadFile(handler, file, parentPath) {
                     if (txRes && (txRes.code === 0 || txRes.code === '0')) {
                         // tx was broadcast successfully but event indexing timed out — treat as success
                         // eslint-disable-next-line no-console
-                        console.debug('uploadFile: processQueue reported Event Timeout but txResponse success, treating as success', res);
                         return;
                     }
                 }
@@ -68,7 +66,6 @@ export async function uploadFile(handler, file, parentPath) {
                 // If the chain reports the tx is already in the mempool/cache, treat as success
                 if (/tx already exists in cache/i.test(msg) || (procErr && procErr.data && String(procErr.data).toLowerCase().includes('tx already exists')) ) {
                     // eslint-disable-next-line no-console
-                    console.debug('uploadFile: processQueue reported tx already exists in cache, treating as success:', procErr);
                     return;
                 }
 
@@ -80,14 +77,12 @@ export async function uploadFile(handler, file, parentPath) {
                             const txRes = retryRes.txResponse || retryRes.txResult || retryRes.tx || null;
                             if (txRes && (txRes.code === 0 || txRes.code === '0')) {
                                 // eslint-disable-next-line no-console
-                                console.debug('uploadFile: processQueue retry produced Event Timeout but tx success, treating as success', retryRes);
                                 return;
                             }
                         }
                         return;
                     } catch (retryErr) {
                         // eslint-disable-next-line no-console
-                        console.debug('uploadFile: processQueue retry failed:', retryErr && retryErr.message ? retryErr.message : retryErr);
                     }
                 }
                 throw procErr;
@@ -104,7 +99,6 @@ export async function uploadFile(handler, file, parentPath) {
                     const txRes = res.txResponse || res.txResult || res.tx || null;
                     if (txRes && (txRes.code === 0 || txRes.code === '0')) {
                         // eslint-disable-next-line no-console
-                        console.debug('uploadFile: processAllQueues Event Timeout but txResponse success, treating as success', res);
                         return;
                     }
                 }
@@ -113,7 +107,6 @@ export async function uploadFile(handler, file, parentPath) {
                 const m = errAll && errAll.message ? errAll.message : String(errAll || '');
                 if (/tx already exists in cache/i.test(m) || (errAll && errAll.data && String(errAll.data).toLowerCase().includes('tx already exists'))) {
                     // eslint-disable-next-line no-console
-                    console.debug('uploadFile: processAllQueues reported tx already exists in cache, treating as success', errAll);
                     return;
                 }
                 throw errAll;

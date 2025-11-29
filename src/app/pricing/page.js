@@ -31,7 +31,6 @@ export default function Home() {
       await storage.purchaseStoragePlan({ gb: storageSize, days: years * 365, referrer: 'velthium' });
       showSuccessAlert('Storage plan purchased', `${size} ${unit} (${storageSize} bytes) for ${years} years.`);
     } catch (err) {
-      console.debug(err);
       showErrorAlert('Oops!', err?.txResponse?.rawLog || err.message || 'Something went wrong');
     }
   };

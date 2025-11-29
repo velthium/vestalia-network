@@ -13,46 +13,37 @@ export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
     const fileName = parts.pop(); // Remove file name, remaining is parent
     const parentPath = parts.join('/');
 
-    console.debug('deleteItem: target', { fullPath, cleanPath, parentPath, fileName });
 
     // 1. Ensure we are in the correct directory
     try {
         const targetDir = parentPath || 'Home';
-        console.debug('deleteItem: switching to directory', targetDir);
         if (typeof handler.loadDirectory === 'function') {
             await handler.loadDirectory({ path: targetDir });
         }
     } catch (e) {
-        console.warn('deleteItem: loadDirectory failed', e);
     }
 
     // 2. Verify file existence in current view
     try {
         if (typeof handler.listChildFiles === 'function') {
             const files = handler.listChildFiles();
-            console.debug('deleteItem: files in current dir:', files);
             if (!files.includes(fileName)) {
-                console.warn(`deleteItem: file "${fileName}" not found in current directory listing. It might be a ghost file.`);
             }
         }
     } catch (e) {
-        console.warn('deleteItem: listChildFiles failed', e);
     }
 
     // 3. Attempt deletion using deleteTargets (standard method)
     if (typeof handler.deleteTargets === 'function') {
         try {
-            console.debug(`deleteItem: calling deleteTargets for "${fileName}"`);
             await withSignerLock(() => handler.deleteTargets({ targets: [fileName] }));
             return true;
         } catch (err) {
             const msg = err?.message || String(err);
-            console.warn('deleteItem: deleteTargets failed:', msg);
             
             if (!msg.includes('invalid request') && !msg.includes('code 18')) {
                 throw err;
             }
-            console.debug('deleteItem: deleteTargets returned empty msg, attempting fallbacks...');
         }
     }
 
@@ -75,14 +66,12 @@ export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
 
         if (creator && merkle) {
             const deletePackage = { creator, merkle, start };
-            console.debug('deleteItem: attempting deleteFile with package', deletePackage);
             
             if (typeof handler.deleteFile === 'function') {
                 try {
                     await withSignerLock(() => handler.deleteFile(deletePackage));
                     return true;
                 } catch (e) {
-                    console.warn('deleteItem: deleteFile fallback failed', e);
                 }
             }
         }
@@ -91,7 +80,6 @@ export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
     // 5. Fallback: Try deleting by ULID if available
     if (raw && (raw.ulid || raw.fileMeta?.ulid)) {
         const ulid = raw.ulid || raw.fileMeta?.ulid;
-        console.debug('deleteItem: trying deletion by ULID', ulid);
         
         if (typeof handler.queueDelete === 'function') {
             try {
@@ -101,7 +89,6 @@ export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
                 }
                 return true;
             } catch (e) {
-                console.debug('deleteItem: queueDelete(ulid) failed', e);
             }
         }
     }
@@ -110,7 +97,6 @@ export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
     // If the file is missing from storage providers, deleteTargets returns empty msgs (Code 18).
     // We need to manually construct the FileTree deletion message.
     try {
-        console.debug('deleteItem: attempting Force Delete FileTree Entry for', cleanPath);
         
         // We need access to the reader to look up ULIDs and Refs
         // handler.reader is protected but accessible in JS
@@ -122,7 +108,6 @@ export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
             const parentUlid = reader.ulidLookup(parentPath);
             
             if (ulid && parentUlid && ref !== undefined) {
-                console.debug('deleteItem: found FileTree details', { ulid, parentUlid, ref });
                 
                 const pkg = {
                     meta: await NullMetaHandler.create({
@@ -136,17 +121,14 @@ export async function deleteItem(handler, fullPath, isDir = false, raw = null) {
                 if (typeof handler.filetreeDeleteToMsgs === 'function') {
                     const msgs = await handler.filetreeDeleteToMsgs(pkg);
                     if (msgs && msgs.length > 0) {
-                        console.debug('deleteItem: broadcasting Force Delete msgs', msgs);
                         await withSignerLock(() => handler.jackalClient.broadcastAndMonitorMsgs(msgs));
                         return true;
                     }
                 }
             } else {
-                console.warn('deleteItem: could not find FileTree details for Force Delete', { ulid, parentUlid, ref });
             }
         }
     } catch (e) {
-        console.warn('deleteItem: Force Delete failed', e);
     }
 
     throw new Error(`Failed to delete "${fileName}". The file might not exist on the chain or is corrupted.`);

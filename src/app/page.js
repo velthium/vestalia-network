@@ -24,7 +24,6 @@ export default function Home() {
           { label: "Available space", value: formatBytes(getLastValue(space)) },
         ]);
       } catch (error) {
-        console.error('Erreur lors du fetch :', error);
       } finally {
         setLoading(false);
       }

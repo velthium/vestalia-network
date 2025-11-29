@@ -46,11 +46,9 @@ export async function safeUpgradeSigner(handler) {
             const msg = e && e.message ? e.message : String(e || '');
             if (/request rejected|user rejected/i.test(msg)) {
                 // eslint-disable-next-line no-console
-                console.debug('safeUpgradeSigner: user rejected signer request');
                 return false;
             }
             // eslint-disable-next-line no-console
-            console.debug('safeUpgradeSigner: upgradeSigner failed:', msg);
             return false;
         }
     });

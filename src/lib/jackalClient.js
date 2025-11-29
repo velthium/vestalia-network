@@ -40,7 +40,6 @@ export async function initializeJackal(walletType = "keplr") {
     cachedStorage = storage;
     return { client, storage };
   } catch (error) {
-    console.error("Error initializing Jackal client:", error);
     throw error;
   }
 }

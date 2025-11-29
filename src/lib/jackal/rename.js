@@ -34,7 +34,6 @@ export async function renameItem(handler, oldFullPath, newFullPathOrName, isDir 
                 return true;
             } catch (err) {
                 // eslint-disable-next-line no-console
-                console.debug(`renameItem: method ${m} failed:`, err && err.message ? err.message : err);
             }
         }
     }
@@ -52,7 +51,6 @@ export async function renameItem(handler, oldFullPath, newFullPathOrName, isDir 
             }
         } catch (copyErr) {
             // eslint-disable-next-line no-console
-            console.debug('renameItem: copy-then-delete early attempt failed:', copyErr && copyErr.message ? copyErr.message : copyErr);
         }
     }
 
@@ -116,17 +114,14 @@ export async function renameItem(handler, oldFullPath, newFullPathOrName, isDir 
 
             try {
                 // eslint-disable-next-line no-console
-                console.debug('renameItem: calling moveRenameResource with targets:', moveTarget);
                 await withSignerLock(() => handler.moveRenameResource({ targets: [moveTarget] }));
                 return true;
             } catch (errMove) {
                 // eslint-disable-next-line no-console
-                console.debug('renameItem: moveRenameResource failed:', errMove && errMove.message ? errMove.message : errMove);
                 throw errMove;
             }
         } catch (e1) {
             // eslint-disable-next-line no-console
-            console.debug('renameItem: moveRenameResource unexpected failure', e1);
         }
     }
 
@@ -141,7 +136,6 @@ export async function renameItem(handler, oldFullPath, newFullPathOrName, isDir 
             return true;
         } catch (err) {
             // eslint-disable-next-line no-console
-            console.debug('renameItem: copy-then-delete fallback failed:', err && err.message ? err.message : err);
         }
     }
 

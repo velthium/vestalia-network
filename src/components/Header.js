@@ -18,7 +18,7 @@ export default function Header() {
       try {
         const key = await window.keplr.getKey("jackal-1");
         setKeplrInfo({ name: key.name, address: key.bech32Address });
-      } catch (err) { console.warn("Could not load Keplr key:", err); }
+      } catch (err) { }
     })();
   }, [connected]);
 
@@ -27,7 +27,7 @@ export default function Header() {
   const handleLogout = () => {
     setUserName(null);
     localStorage.removeItem("userName");
-    try { disconnectWallet(); } catch (e) { console.warn('disconnectWallet failed:', e); }
+    try { disconnectWallet(); } catch (e) { }
     try { window.location.href = "/login"; } catch (e) { }
   };
 

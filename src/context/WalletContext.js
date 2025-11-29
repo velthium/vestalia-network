@@ -45,11 +45,10 @@ export const WalletProvider = ({ children }) => {
       if (!silent) try { router.push('/vault'); } catch (e) { try { window.location.href = '/vault'; } catch (err) {} }
       return true;
     } catch (err) {
-      console.error("Wallet connection failed:", err);
       const msg = err?.message || String(err);
       if (msg.includes("does not exist on chain") || msg.includes("Send some tokens")) {
         if (!silent) {
-          try { showErrorAlert("Account empty", "This wallet has no JACKAL (JKL). Please send some JKL tokens to your address before using the Vault. Redirecting to Pricing..."); } catch (alertErr) { console.warn("Alert display failed:", alertErr); }
+          try { showErrorAlert("Account empty", "This wallet has no JACKAL (JKL). Please send some JKL tokens to your address before using the Vault. Redirecting to Pricing..."); } catch (alertErr) { }
           try { router.push("/pricing"); } catch (pushErr) { window.location.href = "/pricing"; }
         }
         return false;

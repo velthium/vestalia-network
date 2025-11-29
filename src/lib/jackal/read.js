@@ -38,11 +38,9 @@ export async function loadDirectoryContents(handler, path, ownerCandidates = [])
             try {
                 const res = await handler.readDirectoryContents(lookupPath, { owner, refresh: true });
                 // eslint-disable-next-line no-console
-                console.debug('loadDirectoryContents: attempt owner ->', owner, 'result ->', res);
                 result = res;
             } catch (e) {
                 // eslint-disable-next-line no-console
-                console.debug('loadDirectoryContents: attempt owner ->', owner, 'threw ->', e && e.message ? e.message : e);
                 result = null;
             }
         }
@@ -70,7 +68,6 @@ export async function loadDirectoryContents(handler, path, ownerCandidates = [])
 
     if ((!result || (Object.keys(result || {}).length === 0)) && tried.length > 0) {
         // eslint-disable-next-line no-console
-        console.debug("loadDirectoryContents: no result, tried owners:", tried, "handler.children:", handler && handler.children);
     }
 
     if (result && (result.folders || result.files)) {

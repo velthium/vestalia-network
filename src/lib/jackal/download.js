@@ -18,10 +18,8 @@ export async function downloadFile(handler, filePath, tracker, raw) {
             const providerIps = await handler.findProviderIps(availableProviders);
             await handler.loadProviderPool(providerIps);
         } else {
-            console.warn('downloadFile: No available providers found via getAvailableProviders');
         }
     } catch (e) {
-        console.debug('downloadFile: loadProviderPool error:', e?.message || e);
     }
 
     // Try downloadByUlid if available and we have the ULID
@@ -38,17 +36,14 @@ export async function downloadFile(handler, filePath, tracker, raw) {
             }
 
             if (userAddress) {
-                console.debug('downloadFile: attempting downloadByUlid', ulidStr, 'user:', userAddress);
                 return await handler.downloadByUlid({
                     ulid: ulidStr,
                     trackers: tracker,
                     userAddress: userAddress
                 });
             } else {
-                console.warn('downloadFile: cannot use downloadByUlid without userAddress');
             }
         } catch (e) {
-            console.warn('downloadFile: downloadByUlid failed, falling back to path download', e);
         }
     }
     

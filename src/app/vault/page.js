@@ -108,7 +108,6 @@ const FileThumbnail = ({ item, storageHandler, fullPath }) => {
       const u = URL.createObjectURL(blob);
       setUrl(u);
     } catch (e) {
-      console.error("Thumbnail load error:", e);
       setError(true);
     } finally {
       setLoading(false);
@@ -154,8 +153,10 @@ export default function Vault() {
   const [shareAddress, setShareAddress] = useState('');
   const [fileViewers, setFileViewers] = useState([]);
   const [sharingLoading, setSharingLoading] = useState(false);
+  const [sharedItems, setSharedItems] = useState([]);
+  const [pendingNotifications, setPendingNotifications] = useState(0);
 
-  const logIfNotUserRejected = (err, prefix = '') => { const msg = err?.message || String(err || ''); if (/request rejected|user rejected/i.test(msg)) console.debug(prefix, 'user rejected signer request:', msg); else console.error(prefix, err); };
+  const logIfNotUserRejected = (err, prefix = '') => { };
 
   // Load starred items from localStorage
   useEffect(() => {
@@ -164,10 +165,16 @@ export default function Vault() {
       try {
         setStarredItems(JSON.parse(saved));
       } catch (e) {
-        console.error('Failed to load starred items:', e);
       }
     }
   }, []);
+
+  // Check for pending notifications when storage handler is ready
+  useEffect(() => {
+    if (storageHandler) {
+      checkPendingNotifications();
+    }
+  }, [storageHandler]);
 
   // Toggle star status
   const toggleStar = (item) => {
@@ -184,11 +191,83 @@ export default function Vault() {
     return starredItems.includes(itemKey);
   };
 
+  // Load shared files
+  const loadSharedFiles = async () => {
+    if (!storageHandler) return;
+    setLoading(true);
+    try {
+      
+      // Use loadShared to load shared files into storageHandler.children
+      await storageHandler.loadShared();
+      
+      let sharedFilesList = [];
+      
+      if (storageHandler.children) {
+        const { folders = {}, files = {} } = storageHandler.children;
+        
+        const folderItems = Object.values(folders).map((f) => ({
+          name: f.whoAmI || f.name || f.description || "",
+          isDir: true,
+          raw: f,
+          isSharedItem: true
+        }));
+
+        const fileItems = Object.values(files).map((file) => ({
+          name: file.fileMeta?.name || file.name || "",
+          isDir: false,
+          size: (file.fileMeta && file.fileMeta.size) || file.size || 0,
+          raw: file,
+          isSharedItem: true
+        }));
+
+        sharedFilesList = [...folderItems, ...fileItems];
+      }
+      
+      setSharedItems(sharedFilesList);
+    } catch (err) {
+      setSharedItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check for pending share notifications
+  const checkPendingNotifications = async () => {
+    if (!storageHandler) return;
+    try {
+      // Debug: log all available methods on storageHandler
+      
+      const count = await storageHandler.checkNotifications();
+      setPendingNotifications(count || 0);
+    } catch (err) {
+      setPendingNotifications(0);
+    }
+  };
+
+  // Process pending share notifications
+  const handleProcessNotifications = async () => {
+    if (!storageHandler) return;
+    setLoading(true);
+    try {
+      await safeUpgradeSigner(storageHandler);
+      await storageHandler.processPendingNotifications();
+      setStatusMessage('Share notifications processed successfully!');
+      setTimeout(() => setStatusMessage(''), 3000);
+      // Refresh notifications count and shared files
+      await checkPendingNotifications();
+      await loadSharedFiles();
+    } catch (err) {
+      await showErrorAlert('Processing Failed', err?.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAccountMissing = async (err) => {
     const msg = err?.message || String(err || "");
     if (msg.includes("does not exist on chain") || msg.includes("Send some tokens")) {
       setBlocked(true);
-      try { await showErrorAlert("Account empty", "This wallet has no JACKAL (JKL). Please send some JKL tokens to your address before using the Vault. You will be redirected to Pricing."); } catch (e) { console.warn("showErrorAlert failed:", e); }
+      try { await showErrorAlert("Account empty", "This wallet has no JACKAL (JKL). Please send some JKL tokens to your address before using the Vault. You will be redirected to Pricing."); } catch (e) { }
       try { router.push("/pricing"); } catch (e) { window.location.href = "/pricing"; }
       return true;
     }
@@ -201,7 +280,7 @@ export default function Vault() {
       try {
         setStatusMessage("Initializing Jackal storage...");
         setLoading(true);
-        try { await safeUpgradeSigner(storage); } catch (e) { console.debug('vault:init safeUpgradeSigner unexpected error:', e?.message || e); }
+        try { await safeUpgradeSigner(storage); } catch (e) { }
         await storage.initStorage();
         
         // Load provider pool once at initialization
@@ -210,7 +289,6 @@ export default function Vault() {
           const providerIps = await storage.findProviderIps(availableProviders);
           await storage.loadProviderPool(providerIps);
         } catch (e) {
-          console.debug('vault:init loadProviderPool error:', e?.message || e);
         }
         
         setStorageHandler(storage);
@@ -219,11 +297,9 @@ export default function Vault() {
         try {
           const status = await getStorageStatus(storage);
           if (status) {
-            console.debug('Storage status:', status);
             setStorageInfo(status);
           }
         } catch (e) {
-          console.warn('Failed to get storage status:', e);
         }
 
         await refreshDirectory(pathStackIds.join('/'), storage);
@@ -407,7 +483,6 @@ export default function Vault() {
     const newName = prompt('New name for ' + item.name + ':', item.name);
     if (!newName || newName === item.name) return;
     try {
-      console.debug('handleRenameItem: item.raw =', item.raw);
       setStatusMessage(`Renaming ${item.name} -> ${newName}...`);
       await renameItem(storageHandler, oldFullPath, newName, !!item.isDir, item.raw);
       await refreshDirectory(parentPath);
@@ -460,7 +535,6 @@ export default function Vault() {
         setStatusMessage("");
       }, 3000);
     } catch (err) {
-      console.error("Download error:", err);
       logIfNotUserRejected(err, 'handleDownload');
       if (await handleAccountMissing(err)) return;
       setStatusMessage("Download failed: " + (err?.message || String(err)));
@@ -494,7 +568,6 @@ export default function Vault() {
       const viewers = await getFileViewers(storageHandler, fullPath, item.raw);
       setFileViewers(viewers);
     } catch (err) {
-      console.error('Failed to load viewers:', err);
       setFileViewers([]);
     } finally {
       setSharingLoading(false);
@@ -512,6 +585,9 @@ export default function Vault() {
 
     setSharingLoading(true);
     try {
+      // Ensure handler has signing capabilities
+      await safeUpgradeSigner(storageHandler);
+      
       const fullPath = pathStackIds.join("/") + "/" + (shareModalItem.raw?.fileMeta?.name || shareModalItem.name);
       await shareFile(storageHandler, fullPath, shareAddress, shareModalItem.raw);
       
@@ -522,7 +598,6 @@ export default function Vault() {
       setStatusMessage('File shared successfully!');
       setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
-      console.error('Share failed:', err);
       await showErrorAlert('Share Failed', err?.message || String(err));
     } finally {
       setSharingLoading(false);
@@ -534,6 +609,9 @@ export default function Vault() {
     
     setSharingLoading(true);
     try {
+      // Ensure handler has signing capabilities
+      await safeUpgradeSigner(storageHandler);
+      
       const fullPath = pathStackIds.join("/") + "/" + (shareModalItem.raw?.fileMeta?.name || shareModalItem.name);
       await unshareFile(storageHandler, fullPath, viewerAddress, shareModalItem.raw);
       
@@ -543,7 +621,6 @@ export default function Vault() {
       setStatusMessage('Access revoked successfully!');
       setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
-      console.error('Unshare failed:', err);
       await showErrorAlert('Revoke Failed', err?.message || String(err));
     } finally {
       setSharingLoading(false);
@@ -571,16 +648,18 @@ export default function Vault() {
   );
 
   // Filter items by search query and active view
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
-    
-    if (activeView === 'starred') {
-      return isStarred(item);
-    }
-    // Add more filters for 'recent' and 'deleted' when implemented
-    return true;
-  });
+  const filteredItems = activeView === 'shared' 
+    ? sharedItems.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : items.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+      
+      if (activeView === 'starred') {
+        return isStarred(item);
+      }
+      // Add more filters for 'recent' and 'deleted' when implemented
+      return true;
+    });
 
   return (
     <div className="d-flex" style={{ height: 'calc(100vh - 80px)', overflow: 'hidden' }}>
@@ -628,7 +707,49 @@ export default function Vault() {
                 {starredItems.length > 0 && <span className="badge rounded-pill" style={{ background: '#6366f1', color: 'white', fontSize: '0.7rem', marginLeft: 'auto' }}>{starredItems.length}</span>}
               </button>
             </div>
+            <div className="mb-2">
+              <button onClick={() => { setActiveView('shared'); loadSharedFiles(); }} className="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none w-100 border-0" style={{ 
+                borderRadius: '8px',
+                background: activeView === 'shared' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                color: activeView === 'shared' ? '#6366f1' : 'var(--text-secondary)',
+                fontWeight: activeView === 'shared' ? '600' : '400',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
+                <i className="bi bi-people-fill"></i>
+                <span>Shared with me</span>
+                {sharedItems.length > 0 && <span className="badge rounded-pill" style={{ background: '#6366f1', color: 'white', fontSize: '0.7rem', marginLeft: 'auto' }}>{sharedItems.length}</span>}
+              </button>
+            </div>
           </nav>
+
+          {/* Import Shared Files Button */}
+          {pendingNotifications > 0 && (
+            <div className="mt-3">
+              <button 
+                onClick={handleProcessNotifications} 
+                disabled={loading}
+                className="btn btn-sm w-100 position-relative" 
+                style={{ 
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  padding: '10px'
+                }}
+              >
+                <i className="bi bi-inbox-fill me-2"></i>
+                Import Shared Files
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {pendingNotifications}
+                  <span className="visually-hidden">pending notifications</span>
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Storage Widget in Sidebar */}

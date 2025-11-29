@@ -7,7 +7,6 @@ export async function getStorageStatus(handler) {
     try {
         return await handler.planStatus();
     } catch (e) {
-        console.warn('getStorageStatus failed:', e);
         return null;
     }
 }

@@ -11,6 +11,7 @@ import { ClipLoader } from "react-spinners";
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const [connectingWallet, setConnectingWallet] = useState(null);
   const [status, setStatus] = useState("");
 
   const { connectWallet, client, connected } = useWallet();
@@ -26,6 +27,7 @@ export default function Login() {
   const handleLoginClick = async (walletType) => {
     try {
       setIsLoading(true);
+      setConnectingWallet(walletType);
       setStatus(`Connecting to ${walletType === 'leap' ? 'Leap' : 'Keplr'}...`);
 
       const success = await connectWallet(walletType);
@@ -43,10 +45,10 @@ export default function Login() {
       setStatus("Connected successfully!");
       router.push("/vault");
     } catch (error) {
-      console.error("Error during connection:", error);
       setStatus("Connection failed!");
     } finally {
       setIsLoading(false);
+      setConnectingWallet(null);
     }
   };
 
@@ -55,13 +57,13 @@ export default function Login() {
       <PageTitle title="Connect your Wallet" />
       <div className="d-flex flex-column gap-3 align-items-center mt-4">
         <button className="btn bg-purple d-flex align-items-center justify-content-center gap-3 px-4 py-2" style={{ minWidth: '250px' }} onClick={() => handleLoginClick('keplr')} disabled={isLoading} aria-label="Connect with Keplr wallet">
-          {isLoading ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Keplr.svg" alt="Keplr logo" width={40} height={40} className="rounded" loading="eager" />}
-          <span className="fw-semibold fs-5 my-auto">{isLoading ? "Connecting..." : "Keplr Wallet"}</span>
+          {connectingWallet === 'keplr' ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Keplr.svg" alt="Keplr logo" width={40} height={40} className="rounded" loading="eager" />}
+          <span className="fw-semibold fs-5 my-auto">{connectingWallet === 'keplr' ? "Connecting..." : "Keplr Wallet"}</span>
         </button>
 
         <button className="btn bg-purple d-flex align-items-center justify-content-center gap-3 px-4 py-2" style={{ minWidth: '250px' }} onClick={() => handleLoginClick('leap')} disabled={isLoading} aria-label="Connect with Leap wallet">
-          {isLoading ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Leap.png" alt="Leap logo" width={40} height={40} className="rounded" loading="eager" />}
-          <span className="fw-semibold fs-5 my-auto">{isLoading ? "Connecting..." : "Leap Wallet"}</span>
+          {connectingWallet === 'leap' ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Leap.png" alt="Leap logo" width={40} height={40} className="rounded" loading="eager" />}
+          <span className="fw-semibold fs-5 my-auto">{connectingWallet === 'leap' ? "Connecting..." : "Leap Wallet"}</span>
         </button>
       </div>
       {status && <p className={`mt-3 ${status.toLowerCase().match(/success|connected|connecting/) ? 'text-success' : 'text-danger'}`}>{status}</p>}
