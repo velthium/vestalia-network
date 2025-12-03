@@ -56,14 +56,44 @@ export default function Login() {
     <div className="container text-center">
       <PageTitle title="Connect your Wallet" />
       <div className="d-flex flex-column gap-3 align-items-center mt-4">
-        <button className="btn bg-purple d-flex align-items-center justify-content-center gap-3 px-4 py-2" style={{ minWidth: '250px' }} onClick={() => handleLoginClick('keplr')} disabled={isLoading} aria-label="Connect with Keplr wallet">
+        <button 
+          className="btn d-flex align-items-center justify-content-center gap-3 px-4 py-3" 
+          style={{ 
+            minWidth: '300px',
+            background: 'linear-gradient(135deg, #E0CCFF 0%, #C8B6FF 100%)',
+            border: 'none',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(123, 97, 255, 0.2)',
+            transition: 'all 0.2s ease'
+          }} 
+          onClick={() => handleLoginClick('keplr')} 
+          disabled={isLoading} 
+          aria-label="Connect with Keplr wallet"
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
           {connectingWallet === 'keplr' ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Keplr.svg" alt="Keplr logo" width={40} height={40} className="rounded" loading="eager" />}
-          <span className="fw-semibold fs-5 my-auto">{connectingWallet === 'keplr' ? "Connecting..." : "Keplr Wallet"}</span>
+          <span className="fw-semibold fs-5 my-auto" style={{ color: '#1a1625' }}>{connectingWallet === 'keplr' ? "Connecting..." : "Keplr Wallet"}</span>
         </button>
 
-        <button className="btn bg-purple d-flex align-items-center justify-content-center gap-3 px-4 py-2" style={{ minWidth: '250px' }} onClick={() => handleLoginClick('leap')} disabled={isLoading} aria-label="Connect with Leap wallet">
+        <button 
+          className="btn d-flex align-items-center justify-content-center gap-3 px-4 py-3" 
+          style={{ 
+            minWidth: '300px',
+            background: 'linear-gradient(135deg, #E0CCFF 0%, #C8B6FF 100%)',
+            border: 'none',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(123, 97, 255, 0.2)',
+            transition: 'all 0.2s ease'
+          }} 
+          onClick={() => handleLoginClick('leap')} 
+          disabled={isLoading} 
+          aria-label="Connect with Leap wallet"
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
           {connectingWallet === 'leap' ? <ClipLoader size={24} color="#000000" /> : <Image src="/images/Leap.png" alt="Leap logo" width={40} height={40} className="rounded" loading="eager" />}
-          <span className="fw-semibold fs-5 my-auto">{connectingWallet === 'leap' ? "Connecting..." : "Leap Wallet"}</span>
+          <span className="fw-semibold fs-5 my-auto" style={{ color: '#1a1625' }}>{connectingWallet === 'leap' ? "Connecting..." : "Leap Wallet"}</span>
         </button>
       </div>
       {status && <p className={`mt-3 ${status.toLowerCase().match(/success|connected|connecting/) ? 'text-success' : 'text-danger'}`}>{status}</p>}

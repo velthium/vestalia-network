@@ -104,10 +104,17 @@ const FileThumbnail = ({ item, storageHandler, fullPath }) => {
     try {
       const tracker = { progress: 0, chunks: [] };
       // Use queue to prevent network congestion
-      const blob = await thumbnailQueue.add(() => downloadFile(storageHandler, fullPath, tracker, item.raw));
+      // Pass context for shared files
+      const downloadContext = {
+        ...item.raw,
+        isSharedItem: item.isSharedItem,
+        sharerAddress: item.sharerAddress
+      };
+      const blob = await thumbnailQueue.add(() => downloadFile(storageHandler, fullPath, tracker, downloadContext));
       const u = URL.createObjectURL(blob);
       setUrl(u);
     } catch (e) {
+      console.error('Thumbnail load failed for', item.name, e);
       setError(true);
     } finally {
       setLoading(false);
@@ -191,40 +198,64 @@ export default function Vault() {
     return starredItems.includes(itemKey);
   };
 
-  // Load shared files
+  // Load shared files - only files shared WITH you, not BY you
   const loadSharedFiles = async () => {
     if (!storageHandler) return;
     setLoading(true);
     try {
+      console.log('Loading shared files using sharingLookup()...');
       
-      // Use loadShared to load shared files into storageHandler.children
-      await storageHandler.loadShared();
+      // First get list of sharers (people who shared with you)
+      let sharers = [];
+      if (storageHandler.reader && typeof storageHandler.reader.sharingLookup === 'function') {
+        try {
+          sharers = await storageHandler.reader.sharingLookup({ refresh: true });
+          console.log('Sharers found:', sharers);
+        } catch (e) {
+          console.error('sharingLookup failed:', e);
+        }
+      }
       
       let sharedFilesList = [];
       
-      if (storageHandler.children) {
-        const { folders = {}, files = {} } = storageHandler.children;
-        
-        const folderItems = Object.values(folders).map((f) => ({
-          name: f.whoAmI || f.name || f.description || "",
-          isDir: true,
-          raw: f,
-          isSharedItem: true
-        }));
-
-        const fileItems = Object.values(files).map((file) => ({
-          name: file.fileMeta?.name || file.name || "",
-          isDir: false,
-          size: (file.fileMeta && file.fileMeta.size) || file.size || 0,
-          raw: file,
-          isSharedItem: true
-        }));
-
-        sharedFilesList = [...folderItems, ...fileItems];
+      // sharers is an array of FolderMetaData representing each person who shared with you
+      if (Array.isArray(sharers) && sharers.length > 0) {
+        sharedFilesList = sharers.map((sharer) => {
+          console.log('Sharer object:', sharer);
+          
+          // Try to extract the sharer's address
+          // It should look like a bech32 address (jkl1...)
+          const potentialAddresses = [
+            sharer.owner,
+            sharer.name,
+            sharer.whoAmI,
+            sharer.creator,
+            sharer.whoOwns,
+            sharer.refSharer
+          ];
+          
+          const isAddress = (str) => typeof str === 'string' && str.startsWith('jkl1');
+          const validAddress = potentialAddresses.find(isAddress);
+          
+          // If we found a valid address, use it. Otherwise fall back to owner or location
+          const sharerAddr = validAddress || sharer.owner || sharer.location || null;
+          
+          console.log('Extracted sharer address:', sharerAddr);
+          
+          return {
+            name: sharer.name || sharer.whoAmI || 'Shared Folder',
+            isDir: true, // These are always folders (one per sharer)
+            raw: sharer,
+            isSharedItem: true,
+            sharerAddress: sharerAddr
+          };
+        });
       }
       
+      console.log('Processed shared files list:', sharedFilesList);
       setSharedItems(sharedFilesList);
     } catch (err) {
+      console.error('Error loading shared files:', err);
       setSharedItems([]);
     } finally {
       setLoading(false);
@@ -334,13 +365,247 @@ export default function Vault() {
   const deriveId = (it) => { const r = it?.raw || it; if (!r) return it?.name || ''; return r.ulid?.toString?.() || r.ulid || r.ulidString?.toString?.() || r.ref || (r.folder && (r.folder.ulid || r.folder.ref)) || r.name || r.whoAmI || it?.name || ''; };
 
   const handleOpenFolder = async (item) => {
-    const id = deriveId(item);
-    const label = item?.raw?.whoAmI || item.name;
-    const newIds = [...pathStackIds, id];
-    const newLabels = [...pathStack, label];
-    setPathStackIds(newIds);
-    setPathStack(newLabels);
-    await refreshDirectory(newIds.join("/"));
+    // Check if this is a shared item
+    if (item.isSharedItem) {
+      console.log('Opening shared folder:', item);
+      console.log('Full item.raw:', JSON.stringify(item.raw, null, 2));
+      
+      // For shared items, use sharingLookup with the sharer's address
+      try {
+        setLoading(true);
+        setStatusMessage('Loading shared folder...');
+        
+        const sharerAddress = item.sharerAddress || item.raw?.owner || item.raw?.location || item.raw?.refSharer;
+        console.log('Extracted sharer address:', sharerAddress);
+        console.log('All item.raw properties:', Object.keys(item.raw || {}));
+        
+        if (!sharerAddress) {
+          console.error('Cannot find sharer address. Item:', item);
+          console.error('item.raw keys:', Object.keys(item.raw || {}));
+          console.error('item.raw values:', Object.entries(item.raw || {}));
+          throw new Error('No sharer address found for this item. Check console for details.');
+        }
+        
+        // If sharerAddress is a path (starts with s/), use readFolderContents instead of sharingLookup
+        if (typeof sharerAddress === 'string' && sharerAddress.startsWith('s/')) {
+          console.log('sharerAddress is a path, using readFolderContents:', sharerAddress);
+          if (storageHandler.reader && typeof storageHandler.reader.readFolderContents === 'function') {
+            // Remove 's/' prefix as readFolderContents expects path without storage prefix
+            const cleanPath = sharerAddress.replace(/^s\//, '');
+            const contents = await storageHandler.reader.readFolderContents(cleanPath);
+            console.log('Folder contents from path:', contents);
+            
+            // Convert to our item format
+            const folderItems = Object.values(contents.folders || {}).map((f) => ({
+              name: f.whoAmI || f.name || "",
+              isDir: true,
+              raw: f,
+              isSharedItem: true,
+              sharerAddress: sharerAddress // Keep the path as context
+            }));
+            
+            const fileItems = Object.values(contents.files || {}).map((file) => ({
+              name: file.fileMeta?.name || file.name || "",
+              isDir: false,
+              size: file.fileMeta?.size || file.size || 0,
+              raw: file,
+              isSharedItem: true,
+              sharerAddress: sharerAddress
+            }));
+            
+            const allItems = [...folderItems, ...fileItems];
+            setItems(allItems);
+            setPathStack([...pathStack, item.name]);
+            setPathStackIds([...pathStackIds, sharerAddress]);
+            setStatusMessage('');
+            return; // Exit early
+          }
+        }
+        
+        if (storageHandler.reader && typeof storageHandler.reader.sharingLookup === 'function') {
+          // Use sharingLookup with the sharer's address to get their shared content
+          let sharedContents;
+          try {
+            console.log('Calling sharingLookup with sharer:', sharerAddress);
+            sharedContents = await storageHandler.reader.sharingLookup({ sharer: sharerAddress, refresh: true });
+          } catch (err) {
+            console.warn('First attempt at sharingLookup failed:', err);
+            
+            // If direct lookup fails, let's try to find the sharer in the list manually
+            console.log('Refreshing sharing list to find correct sharer...');
+            const allSharers = await storageHandler.reader.sharingLookup({ refresh: true });
+            console.log('All available sharers:', allSharers);
+            
+            // Find the sharer in the fresh list
+            const matchingSharer = allSharers.find(s => 
+              s.owner === sharerAddress || 
+              s.name === item.name ||
+              (item.raw && s.owner === item.raw.owner)
+            );
+            
+            if (matchingSharer && matchingSharer.owner) {
+              console.log('Found matching sharer in fresh list:', matchingSharer);
+              // Try again with the fresh owner address
+              sharedContents = await storageHandler.reader.sharingLookup({ sharer: matchingSharer.owner });
+            } else {
+              console.warn('Could not find sharer in fresh list. SharerAddress was:', sharerAddress);
+              // Don't throw, let it fall through to location fallback
+              sharedContents = [];
+            }
+          }
+          
+          console.log('Shared contents from sharer:', sharedContents);
+          
+          if (!Array.isArray(sharedContents)) {
+            sharedContents = [];
+          }
+
+          // If sharingLookup returned empty, but we have a location, try reading that directly
+          if (sharedContents.length === 0 && item.raw?.location?.startsWith('s/')) {
+            console.log('sharingLookup empty, falling back to location:', item.raw.location);
+            try {
+              // Remove 's/' prefix
+              const cleanLocation = item.raw.location.replace(/^s\//, '');
+              const sharerAddress = item.sharerAddress || item.raw?.owner;
+              
+              console.log('Fallback: calling loadDirectoryContents with:', { cleanLocation, sharerAddress });
+              
+              // Use loadDirectoryContents which handles owner lookup
+              const contents = await loadDirectoryContents(storageHandler, cleanLocation, [sharerAddress]);
+              console.log('Fallback contents:', contents);
+              
+              if (contents && contents.length > 0) {
+                // contents are already normalized by loadDirectoryContents
+                // We just need to ensure they have isSharedItem and sharerAddress
+                const allItems = contents.map(c => ({
+                  ...c,
+                  isSharedItem: true,
+                  sharerAddress: sharerAddress
+                }));
+                
+                setItems(allItems);
+                setActiveView('all'); // Switch to 'all' view to display the items
+                setPathStack([...pathStack, item.name]);
+                setPathStackIds([...pathStackIds, item.raw.location]);
+                setStatusMessage('');
+                setLoading(false);
+                return;
+              } else {
+                // Try reading directly with full path if loadDirectoryContents failed
+                console.log('Fallback 1 empty, trying readDirectoryContents with full path:', item.raw.location);
+                if (storageHandler.readDirectoryContents) {
+                   const res = await storageHandler.readDirectoryContents(item.raw.location, { owner: sharerAddress, refresh: true });
+                   if (res && (res.folders || res.files)) {
+                      const folders = Object.values(res.folders || {}).map((f) => ({
+                          name: f.whoAmI || f.name || "",
+                          isDir: true,
+                          raw: f,
+                          isSharedItem: true,
+                          sharerAddress: sharerAddress
+                      }));
+                      const files = Object.values(res.files || {}).map((file) => ({
+                          name: file.fileMeta?.name || file.name || "",
+                          isDir: false,
+                          size: (file.fileMeta && file.fileMeta.size) || file.size || 0,
+                          raw: file,
+                          isSharedItem: true,
+                          sharerAddress: sharerAddress
+                      }));
+                      const allItems = [...folders, ...files];
+                      console.log('Fallback 2 success:', allItems);
+                      setItems(allItems);
+                      setActiveView('all'); // Switch to 'all' view to display the items
+                      setPathStack([...pathStack, item.name]);
+                      setPathStackIds([...pathStackIds, item.raw.location]);
+                      setStatusMessage('');
+                      setLoading(false);
+                      return;
+                   }
+                }
+              }
+            } catch (fallbackErr) {
+              console.warn('Fallback to location failed:', fallbackErr);
+            }
+          }
+          
+          // Convert to our item format and load file metadata for sizes
+          const allItems = await Promise.all(sharedContents.map(async (sharedItem) => {
+            const name = sharedItem.whoAmI || sharedItem.fileMeta?.name || sharedItem.name || "Unknown";
+            
+            // Check if it's a folder or file
+            let isFolder = true; // Default to folder
+            
+            // Strong signals for file
+            if (sharedItem.metaDataType === 'file') isFolder = false;
+            else if (sharedItem.metaDataType === 'share' && sharedItem.isFile) isFolder = false;
+            else if (sharedItem.fileMeta && !sharedItem.fileMeta.isFolder) isFolder = false;
+            else if (sharedItem.fid || sharedItem.merkle || sharedItem.merkleHex) isFolder = false;
+            else if (name.match(/\.(jpg|jpeg|png|gif|webp|svg|pdf|txt|doc|docx|xls|xlsx|mp4|mp3|wav|zip|rar|7z|json|md)$/i)) isFolder = false;
+            
+            // Strong signals for folder
+            if (sharedItem.metaDataType === 'folder') isFolder = true;
+            else if (sharedItem.metaDataType === 'share' && sharedItem.isFile === false) isFolder = true;
+            else if (sharedItem.fileMeta && sharedItem.fileMeta.isFolder) isFolder = true;
+            
+            // Try to get file size from original file metadata if this is a shared file
+            let fileSize = sharedItem.fileMeta?.size || sharedItem.size || 0;
+            
+            // If size is 0 and we have pointsTo (ULID of original file), try to load real metadata
+            if (!isFolder && fileSize === 0 && sharedItem.pointsTo && sharedItem.owner) {
+              try {
+                if (typeof storageHandler.getMetaDataByUlid === 'function') {
+                  const originalMeta = await storageHandler.getMetaDataByUlid({
+                    ulid: sharedItem.pointsTo,
+                    userAddress: sharedItem.owner
+                  });
+                  if (originalMeta && originalMeta.fileMeta && originalMeta.fileMeta.size) {
+                    fileSize = originalMeta.fileMeta.size;
+                    console.log(`Loaded size for ${name}: ${fileSize} bytes`);
+                  }
+                }
+              } catch (e) {
+                console.warn(`Could not load metadata for shared file ${name}:`, e.message);
+              }
+            }
+            
+            return {
+              name: name,
+              isDir: isFolder,
+              size: !isFolder ? fileSize : 0,
+              raw: sharedItem,
+              isSharedItem: true,
+              sharerAddress: sharerAddress // Preserve for nested navigation
+            };
+          }));
+          
+          console.log('Converted shared items:', allItems);
+          
+          setItems(allItems);
+          setActiveView('all'); // Switch to 'all' view to display the items
+          setPathStack([...pathStack, item.name]);
+          setPathStackIds([...pathStackIds, sharerAddress]); // Use sharer address as path ID
+          setStatusMessage('');
+        } else {
+          console.error('sharingLookup method not available');
+          setStatusMessage('Unable to open shared folder - method not available');
+        }
+      } catch (err) {
+        console.error('Error opening shared folder:', err);
+        await showErrorAlert('Cannot Open Shared Folder', err?.message || String(err));
+        setStatusMessage('');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Regular folder handling
+      const id = deriveId(item);
+      const label = item?.raw?.whoAmI || item.name;
+      const newIds = [...pathStackIds, id];
+      const newLabels = [...pathStack, label];
+      setPathStackIds(newIds);
+      setPathStack(newLabels);
+      await refreshDirectory(newIds.join("/"));
+    }
   };
 
   const handleGoBack = async () => {
@@ -515,7 +780,14 @@ export default function Vault() {
 
       const fullPath = pathStackIds.join("/") + "/" + (item.raw?.fileMeta?.name || item.name);
       
-      const blob = await downloadFile(storageHandler, fullPath, tracker, item.raw);
+      // Pass context for shared files
+      const downloadContext = {
+        ...item.raw,
+        isSharedItem: item.isSharedItem,
+        sharerAddress: item.sharerAddress
+      };
+      
+      const blob = await downloadFile(storageHandler, fullPath, tracker, downloadContext);
       
       clearInterval(progressInterval);
       setDownloadProgress(100);
@@ -535,6 +807,7 @@ export default function Vault() {
         setStatusMessage("");
       }, 3000);
     } catch (err) {
+      console.error('Download failed:', err);
       logIfNotUserRejected(err, 'handleDownload');
       if (await handleAccountMissing(err)) return;
       setStatusMessage("Download failed: " + (err?.message || String(err)));
@@ -565,9 +838,72 @@ export default function Vault() {
     setSharingLoading(true);
     try {
       const fullPath = pathStackIds.join("/") + "/" + (item.raw?.fileMeta?.name || item.name);
-      const viewers = await getFileViewers(storageHandler, fullPath, item.raw);
-      setFileViewers(viewers);
+      
+      console.log('Loading viewers for:', fullPath, 'Raw:', item.raw);
+      
+      // Try multiple methods to get viewers
+      let viewers = [];
+      
+      // Method 1: Try using readViewerShares with ULID directly from reader
+      try {
+        let fileId = null;
+        if (item.raw && (item.raw.ulid || item.raw.fileMeta?.ulid)) {
+          const ulid = item.raw.ulid || item.raw.fileMeta?.ulid;
+          fileId = typeof ulid === 'string' ? ulid : ulid.toString();
+        }
+        
+        if (fileId && storageHandler.reader && typeof storageHandler.reader.readViewerShares === 'function') {
+          console.log('Trying readViewerShares with ULID:', fileId);
+          
+          // First ensure we've loaded the viewer data for this file
+          if (typeof storageHandler.reader.viewerLookup === 'function') {
+            try {
+              await storageHandler.reader.viewerLookup(fileId);
+              console.log('viewerLookup completed for ULID:', fileId);
+            } catch (e) {
+              console.warn('viewerLookup failed:', e.message);
+            }
+          }
+          
+          const viewerShares = storageHandler.reader.readViewerShares(fileId);
+          console.log('readViewerShares returned:', viewerShares);
+          if (Array.isArray(viewerShares) && viewerShares.length > 0) {
+            viewers = viewerShares;
+          }
+        }
+      } catch (e) {
+        console.warn('Method 1 (readViewerShares) failed:', e.message);
+      }
+      
+      // Method 2: Try getFileViewers from our library
+      if (viewers.length === 0) {
+        try {
+          viewers = await getFileViewers(storageHandler, fullPath, item.raw);
+          console.log('getFileViewers returned:', viewers);
+        } catch (e) {
+          console.warn('Method 2 (getFileViewers) failed:', e);
+        }
+      }
+      
+      // Method 3: Try sharersRead directly
+      if (viewers.length === 0 && storageHandler.reader && typeof storageHandler.reader.sharersRead === 'function') {
+        try {
+          const cleanPath = fullPath
+            .replace(/^s\/Home\//, '')
+            .replace(/^s\//, '')
+            .replace(/^Home\//, '');
+          console.log('Trying sharersRead with clean path:', cleanPath);
+          viewers = await storageHandler.reader.sharersRead(cleanPath);
+          console.log('sharersRead returned:', viewers);
+        } catch (e) {
+          console.warn('Method 3 (sharersRead) failed:', e.message);
+        }
+      }
+      
+      console.log('Final viewers list:', viewers);
+      setFileViewers(Array.isArray(viewers) ? viewers : []);
     } catch (err) {
+      console.error('Error in handleOpenShareModal:', err);
       setFileViewers([]);
     } finally {
       setSharingLoading(false);
@@ -613,6 +949,14 @@ export default function Vault() {
       await safeUpgradeSigner(storageHandler);
       
       const fullPath = pathStackIds.join("/") + "/" + (shareModalItem.raw?.fileMeta?.name || shareModalItem.name);
+      
+      console.log('Attempting to unshare:', {
+        fullPath,
+        viewerAddress,
+        rawUlid: shareModalItem.raw?.ulid,
+        rawFileMeta: shareModalItem.raw?.fileMeta
+      });
+      
       await unshareFile(storageHandler, fullPath, viewerAddress, shareModalItem.raw);
       
       // Refresh viewers list
@@ -621,7 +965,26 @@ export default function Vault() {
       setStatusMessage('Access revoked successfully!');
       setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
-      await showErrorAlert('Revoke Failed', err?.message || String(err));
+      // Better error extraction - some errors may be wrapped or have non-standard structure
+      let errorMessage = 'Unknown error';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err && typeof err === 'object') {
+        errorMessage = err.message || err.error || err.reason || JSON.stringify(err);
+      }
+      
+      console.error('Unshare error details:', {
+        message: errorMessage,
+        type: typeof err,
+        constructor: err?.constructor?.name,
+        keys: err ? Object.keys(err) : [],
+        stringified: JSON.stringify(err, Object.getOwnPropertyNames(err || {})),
+        stack: err?.stack,
+        fullError: err
+      });
+      await showErrorAlert('Revoke Failed', `${errorMessage}\n\nPath: ${pathStackIds.join("/") + "/" + (shareModalItem.raw?.fileMeta?.name || shareModalItem.name)}`);
     } finally {
       setSharingLoading(false);
     }
