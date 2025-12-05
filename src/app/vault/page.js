@@ -462,7 +462,13 @@ export default function Vault() {
       console.error('Download failed:', err);
       logIfNotUserRejected(err, 'handleDownload');
       if (await handleAccountMissing(err)) return;
-      setStatusMessage("Download failed: " + (err?.message || String(err)));
+      
+      let errorMessage = err?.message || String(err);
+      if (errorMessage.includes('No providers found') || errorMessage.includes('Unable to connect to storage providers')) {
+        errorMessage = 'Unable to connect to storage providers. Please refresh the page and try again.';
+      }
+      
+      setStatusMessage("Download failed: " + errorMessage);
     } finally {
       setDownloading(false);
     }
@@ -472,7 +478,33 @@ export default function Vault() {
     const fullPath = pathStackIds.join("/") + "/" + (item.raw?.fileMeta?.name || item.name);
     // Try to find properties in various places they might be
     const ulid = item.raw?.ulid || item.raw?.fileMeta?.ulid || item.raw?.cid || 'N/A';
-    const merkle = item.raw?.merkle || item.raw?.merkleRoot || item.raw?.fileMeta?.merkle || item.raw?.fileMeta?.merkleRoot || 'N/A';
+    const rawMerkle = item.raw?.merkle || item.raw?.merkleRoot || item.raw?.fileMeta?.merkle || item.raw?.fileMeta?.merkleRoot;
+    
+    // Convert merkle root to hex format if it's a Uint8Array or array of bytes
+    let merkle = 'N/A';
+    if (rawMerkle) {
+      if (rawMerkle instanceof Uint8Array || Array.isArray(rawMerkle)) {
+        // Convert byte array to hex string
+        merkle = '0x' + Array.from(rawMerkle).map(b => b.toString(16).padStart(2, '0')).join('');
+      } else if (typeof rawMerkle === 'string') {
+        // If it's already a string, check if it needs hex conversion
+        if (/^\d+$/.test(rawMerkle)) {
+          // It's a decimal string, convert to hex
+          try {
+            merkle = '0x' + BigInt(rawMerkle).toString(16);
+          } catch (e) {
+            merkle = rawMerkle;
+          }
+        } else {
+          merkle = rawMerkle;
+        }
+      } else if (typeof rawMerkle === 'bigint') {
+        merkle = '0x' + rawMerkle.toString(16);
+      } else {
+        merkle = String(rawMerkle);
+      }
+    }
+    
     const fid = item.raw?.fid || item.raw?.fileMeta?.fid || 'N/A';
 
     setSelectedItemInfo({

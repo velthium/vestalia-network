@@ -2,6 +2,38 @@
  * File download operations
  */
 
+async function ensureProviderPool(handler) {
+    // Check if provider pool is already loaded
+    try {
+        // Try to get current providers - if this works, pool is loaded
+        if (handler.providers && handler.providers.length > 0) {
+            return true;
+        }
+    } catch (e) {
+        // Pool not loaded, continue to load it
+    }
+    
+    // Load provider pool
+    try {
+        const availableProviders = await handler.getAvailableProviders();
+        if (!availableProviders || availableProviders.length === 0) {
+            console.warn('No available providers returned from getAvailableProviders');
+            return false;
+        }
+        const providerIps = await handler.findProviderIps(availableProviders);
+        if (!providerIps || providerIps.length === 0) {
+            console.warn('No provider IPs found');
+            return false;
+        }
+        await handler.loadProviderPool(providerIps);
+        console.log('Provider pool loaded successfully with', providerIps.length, 'providers');
+        return true;
+    } catch (e) {
+        console.error('Failed to load provider pool:', e.message);
+        return false;
+    }
+}
+
 export async function downloadFile(handler, filePath, tracker, raw) {
     // Remove 's/' prefix if present
     let cleanPath = filePath.replace(/^s\//, '');
@@ -11,15 +43,10 @@ export async function downloadFile(handler, filePath, tracker, raw) {
         tracker = { progress: 0, chunks: [] };
     }
     
-    // Load provider pool first to avoid "No providers found" error
-    try {
-        const availableProviders = await handler.getAvailableProviders();
-        if (availableProviders && availableProviders.length > 0) {
-            const providerIps = await handler.findProviderIps(availableProviders);
-            await handler.loadProviderPool(providerIps);
-        }
-    } catch (e) {
-        console.warn('Failed to load provider pool:', e.message);
+    // Ensure provider pool is loaded before attempting download
+    const poolLoaded = await ensureProviderPool(handler);
+    if (!poolLoaded) {
+        throw new Error('Unable to connect to storage providers. Please try again later.');
     }
     
     // Try downloadByUlid first if available
