@@ -74,6 +74,11 @@ body {
 .accordion-button:not(.collapsed) {
   background-color: $custom-purple !important; // Bootstrap warning
   box-shadow: none;
+  color: white !important;
+}
+
+.accordion-button:not(.collapsed)::after {
+  filter: brightness(0) invert(1);
 }
 
 .form-check-input:checked {

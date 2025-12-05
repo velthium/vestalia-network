@@ -664,27 +664,53 @@ export default function Vault() {
             {/* View Toggle */}
             <div className="btn-group" role="group">
               <button 
-                className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                className="btn btn-sm"
                 onClick={() => setViewMode('grid')}
-                style={{ borderRadius: '6px 0 0 6px', fontSize: '0.85rem' }}
+                style={{ 
+                  borderRadius: '6px 0 0 6px', 
+                  fontSize: '0.85rem',
+                  background: viewMode === 'grid' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+                  color: viewMode === 'grid' ? 'white' : 'var(--text-secondary)',
+                  border: viewMode === 'grid' ? 'none' : '1px solid var(--card-border)'
+                }}
               >
                 <i className="bi bi-grid-3x3-gap-fill"></i>
               </button>
               <button 
-                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                className="btn btn-sm"
                 onClick={() => setViewMode('list')}
-                style={{ borderRadius: '0 6px 6px 0', fontSize: '0.85rem' }}
+                style={{ 
+                  borderRadius: '0 6px 6px 0', 
+                  fontSize: '0.85rem',
+                  background: viewMode === 'list' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+                  color: viewMode === 'list' ? 'white' : 'var(--text-secondary)',
+                  border: viewMode === 'list' ? 'none' : '1px solid var(--card-border)'
+                }}
               >
                 <i className="bi bi-list-ul"></i>
               </button>
             </div>
 
             {/* Action Buttons */}
-            <button className="btn btn-sm btn-outline-primary" onClick={handleCreateFolder} disabled={loading} style={{ borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
+            <button className="btn btn-sm" onClick={handleCreateFolder} disabled={loading} style={{ 
+              borderRadius: '8px', 
+              fontSize: '0.85rem', 
+              fontWeight: '600',
+              border: '1px solid #764ba2',
+              color: '#764ba2',
+              background: 'transparent'
+            }}>
               + Folder
             </button>
             <div className="position-relative">
-              <button className="btn btn-sm btn-primary" disabled={uploading || loading} style={{ borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
+              <button className="btn btn-sm" disabled={uploading || loading} style={{ 
+                borderRadius: '8px', 
+                fontSize: '0.85rem', 
+                fontWeight: '600',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none'
+              }}>
                 {uploading ? 'Uploading...' : '+ Upload'}
               </button>
               <input type="file" className="position-absolute top-0 start-0 opacity-0 w-100 h-100" onChange={handleFileUpload} disabled={uploading || loading} style={{ cursor: 'pointer' }} />
@@ -711,26 +737,28 @@ export default function Vault() {
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
               <div className="modal-header border-0 pb-0">
                 <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
-                  <i className="bi bi-file-earmark-text-fill" style={{ color: '#3b82f6' }}></i>
+                  <i className="bi bi-file-earmark-text-fill" style={{ color: '#764ba2' }}></i>
                   {selectedItemInfo.name}
                 </h5>
                 <button type="button" className="btn-close" onClick={() => setSelectedItemInfo(null)}></button>
               </div>
               <div className="modal-body">
-                <div className="mb-3">
-                  <small className="text-muted d-block mb-1">Type</small>
-                  <div className="badge bg-primary">{selectedItemInfo.isDir ? 'Folder' : 'File'}</div>
+                <div className="d-flex gap-4 mb-3 justify-content-around">
+                  <div>
+                    <small className="text-muted d-block mb-1">Type</small>
+                    <div className="badge" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>{selectedItemInfo.isDir ? 'Folder' : 'File'}</div>
+                  </div>
+                  {!selectedItemInfo.isDir && (
+                    <div>
+                      <small className="text-muted d-block mb-1">Size</small>
+                      <strong>{formatBytes(selectedItemInfo.size)}</strong>
+                    </div>
+                  )}
                 </div>
                 <div className="mb-3">
                   <small className="text-muted d-block mb-1">Path</small>
                   <code className="d-block p-2 bg-light rounded">{selectedItemInfo.fullPath}</code>
                 </div>
-                {!selectedItemInfo.isDir && (
-                  <div className="mb-3">
-                    <small className="text-muted d-block mb-1">Size</small>
-                    <strong>{formatBytes(selectedItemInfo.size)}</strong>
-                  </div>
-                )}
                 <div className="mb-3">
                   <small className="text-muted d-block mb-1">ULID</small>
                   <code className="d-block p-2 bg-light rounded text-break small">{selectedItemInfo.ulid}</code>
@@ -801,9 +829,15 @@ export default function Vault() {
                     <div 
                       className="card border-0 h-100" 
                       style={{ 
-                        background: isFolder && dragOverId === (item?.raw?.name || item.name) ? 'var(--hover-bg)' : 'transparent',
+                        background: isFolder && dragOverId === (item?.raw?.name || item.name) 
+                          ? 'var(--hover-bg)' 
+                          : isFolder 
+                            ? 'rgba(118, 75, 162, 0.08)' 
+                            : 'rgba(102, 126, 234, 0.08)',
                         cursor: isFolder ? 'pointer' : 'default',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(118, 75, 162, 0.15)'
                       }}
                       data-is-folder={isFolder ? "true" : "false"}
                       onDragOver={isFolder ? handleDragOver : undefined}

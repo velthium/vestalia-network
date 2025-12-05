@@ -42,7 +42,7 @@ export default function Header() {
           <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText"><span className="navbar-toggler-icon"></span></button>
           <div className="collapse navbar-collapse" id="navbarText">
             <ul className="navbar-nav ms-auto mb-2 mb-lg-0">
-              {connected && <li className="nav-item"><Link className="nav-link active" href="/vault">📦 Vault</Link></li>}
+              {connected && <li className="nav-item"><Link className="nav-link active" href="/vault">Vault</Link></li>}
               <li className="nav-item"><Link className="nav-link" href="/pricing">Pricing</Link></li>
               <li className="nav-item"><Link className="nav-link" href="/faq">FAQ</Link></li>
               <li className="nav-item ms-3 d-flex align-items-center">
