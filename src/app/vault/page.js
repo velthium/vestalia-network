@@ -559,7 +559,7 @@ export default function Vault() {
               }}>
                 <i className="bi bi-star-fill"></i>
                 <span>Starred</span>
-                {starredItems.length > 0 && <span className="badge rounded-pill" style={{ background: '#6366f1', color: 'white', fontSize: '0.7rem', marginLeft: 'auto' }}>{starredItems.length}</span>}
+                {items.filter(item => isStarred(item)).length > 0 && <span className="badge rounded-pill" style={{ background: '#6366f1', color: 'white', fontSize: '0.7rem', marginLeft: 'auto' }}>{items.filter(item => isStarred(item)).length}</span>}
               </button>
             </div>
           </nav>
