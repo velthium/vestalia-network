@@ -24,8 +24,5 @@ export { renameItem } from './rename.js';
 // Folder operations
 export { createNewFolder } from './folder.js';
 
-// Share operations
-export { shareFile, unshareFile, getFileViewers } from './share.js';
-
 // Storage operations
 export { getStorageStatus } from './storage.js';

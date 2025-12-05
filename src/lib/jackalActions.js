@@ -15,5 +15,4 @@ export { uploadFile } from './jackal/upload.js';
 export { deleteItem } from './jackal/delete.js';
 export { renameItem } from './jackal/rename.js';
 export { createNewFolder } from './jackal/folder.js';
-export { shareFile, unshareFile, getFileViewers } from './jackal/share.js';
 export { getStorageStatus } from './jackal/storage.js';
