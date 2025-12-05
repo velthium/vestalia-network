@@ -615,9 +615,22 @@ export default function Vault() {
                     transition: 'width 0.3s'
                   }}></div>
                 </div>
-                <div className="text-white" style={{ fontSize: '0.8rem' }}>
+                <div className="text-white mb-2" style={{ fontSize: '0.8rem' }}>
                   <strong>{formatBytes((storageInfo.info.spaceUsed || 0) / REDUNDANCY_FACTOR)}</strong> of <strong>{formatBytes((storageInfo.info.spaceAvailable || 0) / REDUNDANCY_FACTOR)}</strong>
                 </div>
+                {storageInfo.info.end && (
+                  <div className="text-white" style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                    <i className="bi bi-clock me-1"></i>
+                    {(() => {
+                      const endDate = new Date(storageInfo.info.end);
+                      const now = new Date();
+                      const daysRemaining = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+                      return daysRemaining > 0 
+                        ? `${daysRemaining} day${daysRemaining > 1 ? 's' : ''} remaining`
+                        : 'Expired';
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           )}
