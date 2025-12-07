@@ -624,7 +624,7 @@ export default function Vault() {
                     {(() => {
                       const endDate = new Date(storageInfo.info.end);
                       const now = new Date();
-                      const daysRemaining = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+                      const daysRemaining = Math.floor((endDate - now) / (1000 * 60 * 60 * 24));
                       return daysRemaining > 0 
                         ? `${daysRemaining} day${daysRemaining > 1 ? 's' : ''} remaining`
                         : 'Expired';
