@@ -48,7 +48,7 @@ export default function Home() {
       <h2 className='mt-5 pb-3' style={{ color: 'var(--text-primary)' }}>The Team</h2>
       <section className='m-md-3 p-md-5 py-3 rounded' style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
         <h3 style={{ color: 'var(--text-primary)' }}>Velthium</h3>
-        <a href='https://gitopia.com/dark-velthium' target='_blank'><Image src="/images/ReFiPunks558.webp" alt="NFT profile image of Velthium" width={300} height={300} className="img-fluid mx-auto border rounded shadow homepage-pictures" loading="lazy" /></a>
+        <a href='https://github.com/velthium' target='_blank'><Image src="/images/ReFiPunks558.webp" alt="NFT profile image of Velthium" width={300} height={300} className="img-fluid mx-auto border rounded shadow homepage-pictures" loading="lazy" /></a>
         <p className="mt-5" style={{ color: 'var(--text-primary)' }}>So far it is just me. Creator of this website. Web Developer.</p>
       </section>
     </div>
