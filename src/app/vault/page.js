@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/context/WalletContext";
 import { showErrorAlert } from "@/utils/alerts/error";
+import { showSuccessToast, showErrorToast, showLoadingToast, closeToast } from "@/utils/alerts/success";
 import { loadDirectoryContents, createNewFolder, downloadFile, uploadFile, deleteItem, renameItem, safeUpgradeSigner, getStorageStatus } from "@/lib/jackalActions";
 
 const JACKAL_ROOT = ["s", "Home"];
@@ -141,7 +142,6 @@ export default function Vault() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [statusMessage, setStatusMessage] = useState("");
   const [dragOverId, setDragOverId] = useState(null);
   const dropTargetRef = useRef(null);
   const { connected, loading: walletLoading, storage } = useWallet();
@@ -197,7 +197,7 @@ export default function Vault() {
     const init = async () => {
       if (!connected || !storage) return;
       try {
-        setStatusMessage("Initializing Jackal storage...");
+        showLoadingToast("Initializing Jackal storage...");
         setLoading(true);
         try { await safeUpgradeSigner(storage); } catch (e) { }
         await storage.initStorage();
@@ -222,11 +222,11 @@ export default function Vault() {
         }
 
         await refreshDirectory(pathStackIds.join('/'), storage);
-        setStatusMessage("");
+        closeToast();
       } catch (err) {
         logIfNotUserRejected(err, 'vault:init');
         if (await handleAccountMissing(err)) return;
-        setStatusMessage("Error initializing storage: " + (err?.message || String(err)));
+        showErrorToast("Error initializing storage");
       } finally { setLoading(false); }
     };
     init();
@@ -236,16 +236,12 @@ export default function Vault() {
     if (!handler) return;
     try {
       setLoading(true);
-      let displayPath = String(path || '').replace(/^\/?s\/?/, '');
-      if (!displayPath) displayPath = 'Home';
-      setStatusMessage(`Loading ${displayPath}...`);
       const normalized = await loadDirectoryContents(handler, path);
       setItems(normalized);
-      setStatusMessage("");
     } catch (err) {
       logIfNotUserRejected(err, 'refreshDirectory');
       if (await handleAccountMissing(err)) return;
-      setStatusMessage("Error loading directory: " + (err?.message || String(err)));
+      showErrorToast("Error loading directory");
       setItems([]);
     } finally { setLoading(false); }
   };
@@ -276,14 +272,14 @@ export default function Vault() {
     if (!folderName || !storageHandler) return;
     try {
       const parentPath = pathStackIds.join("/");
-      setStatusMessage(`Creating folder ${folderName}...`);
+      showLoadingToast(`Creating folder ${folderName}...`);
       await createNewFolder(storageHandler, parentPath, folderName);
       await refreshDirectory(parentPath);
-      setStatusMessage("Folder created!");
+      showSuccessToast("Folder created!");
     } catch (err) {
       logIfNotUserRejected(err, 'handleCreateFolder');
       if (await handleAccountMissing(err)) return;
-      setStatusMessage("Error creating folder: " + (err?.message || String(err)));
+      showErrorToast("Error creating folder");
     }
   };
 
@@ -303,18 +299,18 @@ export default function Vault() {
     try {
       setUploading(true);
       setUploadProgress(0);
-      setStatusMessage(`Uploading ${files.length} file(s) to ${item.name}...`);
+      showLoadingToast(`Uploading ${files.length} file(s) to ${item.name}...`);
       for (let i = 0; i < files.length; i++) {
         await uploadFile(storageHandler, files[i], targetPath);
         setUploadProgress(Math.round(((i + 1) / files.length) * 100));
       }
       await refreshDirectory(pathStackIds.join('/'));
-      setStatusMessage('Upload complete!');
+      showSuccessToast('Upload complete!');
       setTimeout(() => setUploadProgress(0), 2000);
     } catch (err) {
       logIfNotUserRejected(err, 'handleDropOnFolder');
       if (await handleAccountMissing(err)) return;
-      setStatusMessage('Upload failed: ' + (err?.message || String(err)));
+      showErrorToast('Upload failed');
     } finally { 
       setUploading(false); 
       dropTargetRef.current = null;
@@ -337,18 +333,18 @@ export default function Vault() {
     try {
       setUploading(true);
       setUploadProgress(0);
-      setStatusMessage(`Uploading ${files.length} file(s)...`);
+      showLoadingToast(`Uploading ${files.length} file(s)...`);
       for (let i = 0; i < files.length; i++) {
         await uploadFile(storageHandler, files[i], parentPath);
         setUploadProgress(Math.round(((i + 1) / files.length) * 100));
       }
       await refreshDirectory(parentPath);
-      setStatusMessage('Upload complete!');
+      showSuccessToast('Upload complete!');
       setTimeout(() => setUploadProgress(0), 2000);
     } catch (err) {
       logIfNotUserRejected(err, 'handleDropOnRoot');
       if (await handleAccountMissing(err)) return;
-      setStatusMessage('Upload failed: ' + (err?.message || String(err)));
+      showErrorToast('Upload failed');
     } finally { setUploading(false); }
   };
 
@@ -358,17 +354,17 @@ export default function Vault() {
     try {
       setUploading(true);
       setUploadProgress(0);
-      setStatusMessage(`Uploading ${file.name}...`);
+      showLoadingToast(`Uploading ${file.name}...`);
       const parentPath = pathStack.join("/");
       await uploadFile(storageHandler, file, parentPath);
       setUploadProgress(100);
       await refreshDirectory(pathStackIds.join("/"));
-      setStatusMessage("Upload complete!");
+      showSuccessToast(`${file.name} uploaded!`);
       setTimeout(() => setUploadProgress(0), 2000);
     } catch (err) {
       logIfNotUserRejected(err, 'handleFileUpload');
       if (await handleAccountMissing(err)) return;
-      setStatusMessage("Upload failed: " + (err?.message || String(err)));
+      showErrorToast('Upload failed');
     } finally {
       setUploading(false);
       event.target.value = null;
@@ -384,15 +380,14 @@ export default function Vault() {
     const fullPath = (parentPath + '/' + namePart).replace(/(^\/|\/\/$)/g, '');
     if (!confirm(`Delete ${item.isDir ? 'folder' : 'file'} "${item.name}"? This action cannot be undone.`)) return;
     try {
-      setStatusMessage(`Deleting ${item.name}...`);
+      showLoadingToast(`Deleting ${item.name}...`);
       await deleteItem(storageHandler, fullPath, !!item.isDir, item.raw);
       await refreshDirectory(parentPath);
-      setStatusMessage('Deleted.');
+      showSuccessToast('Deleted!');
     } catch (err) {
       logIfNotUserRejected(err, 'handleDeleteItem');
       if (await handleAccountMissing(err)) return;
-      await showErrorAlert('Delete failed', err?.message || String(err));
-      setStatusMessage('Delete failed: ' + (err?.message || String(err)));
+      showErrorToast('Delete failed');
     }
   };
 
@@ -403,15 +398,14 @@ export default function Vault() {
     const newName = prompt('New name for ' + item.name + ':', item.name);
     if (!newName || newName === item.name) return;
     try {
-      setStatusMessage(`Renaming ${item.name} -> ${newName}...`);
+      showLoadingToast(`Renaming ${item.name}...`);
       await renameItem(storageHandler, oldFullPath, newName, !!item.isDir, item.raw);
       await refreshDirectory(parentPath);
-      setStatusMessage('Renamed.');
+      showSuccessToast('Renamed!');
     } catch (err) {
       logIfNotUserRejected(err, 'handleRenameItem');
       if (await handleAccountMissing(err)) return;
-      await showErrorAlert('Rename failed', err?.message || String(err));
-      setStatusMessage('Rename failed: ' + (err?.message || String(err)));
+      showErrorToast('Rename failed');
     }
   };
 
@@ -420,7 +414,7 @@ export default function Vault() {
     try {
       setDownloading(true);
       setDownloadProgress(0);
-      setStatusMessage(`Downloading ${item.name}...`);
+      showLoadingToast(`Downloading ${item.name}...`);
       
       const tracker = { progress: 0, chunks: [] };
       // Poll tracker for progress updates
@@ -453,22 +447,13 @@ export default function Vault() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      setStatusMessage("Download complete!");
-      setTimeout(() => {
-        setDownloadProgress(0);
-        setStatusMessage("");
-      }, 3000);
+      showSuccessToast(`${item.name} downloaded!`);
+      setTimeout(() => setDownloadProgress(0), 2000);
     } catch (err) {
       console.error('Download failed:', err);
       logIfNotUserRejected(err, 'handleDownload');
       if (await handleAccountMissing(err)) return;
-      
-      let errorMessage = err?.message || String(err);
-      if (errorMessage.includes('No providers found') || errorMessage.includes('Unable to connect to storage providers')) {
-        errorMessage = 'Unable to connect to storage providers. Please refresh the page and try again.';
-      }
-      
-      setStatusMessage("Download failed: " + errorMessage);
+      showErrorToast('Download failed');
     } finally {
       setDownloading(false);
     }
@@ -730,18 +715,6 @@ export default function Vault() {
             </div>
           </div>
         </div>
-
-        {/* Status Messages */}
-        <div className="px-4 py-3">
-          {statusMessage && (
-            <div className="alert alert-info border-0 mb-0" style={{ borderRadius: '8px', fontSize: '0.9rem' }}>
-              <div className="d-flex align-items-center gap-2">
-                <div className="spinner-border spinner-border-sm" role="status"></div>
-                <span>{statusMessage}</span>
-              </div>
-            </div>
-          )}
-        </div>
       
       {/* File Info Modal */}
       {selectedItemInfo && (
@@ -818,7 +791,7 @@ export default function Vault() {
         </div>
 
         {/* File List */}
-        <div className="flex-grow-1" style={{ overflowY: 'auto', padding: '0 24px 24px' }} onDragOver={handleDragOver} onDrop={handleDropOnRoot}>
+        <div className="flex-grow-1" style={{ overflowY: 'auto', padding: '24px' }} onDragOver={handleDragOver} onDrop={handleDropOnRoot}>
           {loading ? (
             <div className="text-center py-5">
               <div className="spinner-border text-primary mb-3" role="status"></div>
